@@ -6,7 +6,7 @@ services:
     environment:
       - SURREAL_EXPERIMENTAL_GRAPHQL=true
     command: start --log info --user root --pass root rocksdb:/mydata/mydatabase.db
-    pull_policy: always
+    pull_policy: missing
     user: root
     restart: always
   open_notebook:
@@ -14,12 +14,14 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8502:8502"
-      - "5055:5055"
+      - "8899:8899"
     env_file:
-      - ./docker.env
+      - .env
     depends_on:
       - surrealdb
     volumes:
+      - .:/app
+      - ./nginx.conf:/etc/nginx/sites-enabled/default
+      - ./supervisord.conf:/etc/supervisor/conf.d/supervisord.conf
       - ./notebook_data:/app/data
     restart: always

@@ -1,54 +1,13 @@
-# Build stage
-FROM python:3.12-slim-bookworm AS builder
+# Development runtime image with volume mounting
+FROM python:3.12-slim-bookworm
 
-# Install uv using the official method
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
-# Install system dependencies required for building certain Python packages
-# Add Node.js 20.x LTS for building frontend
+# Install system dependencies
+# Add Node.js 20.x LTS, nginx and development tools
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     gcc g++ git make \
-    curl \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set build optimization environment variables
-ENV MAKEFLAGS="-j$(nproc)"
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV UV_COMPILE_BYTECODE=1
-ENV UV_LINK_MODE=copy
-
-# Set the working directory in the container to /app
-WORKDIR /app
-
-# Copy dependency files and minimal package structure first for better layer caching
-COPY pyproject.toml uv.lock ./
-COPY open_notebook/__init__.py ./open_notebook/__init__.py
-
-# Install dependencies with optimizations (this layer will be cached unless dependencies change)
-RUN uv sync --frozen --no-dev
-
-# Copy the rest of the application code
-COPY . /app
-
-# Install frontend dependencies and build
-WORKDIR /app/frontend
-RUN npm ci
-RUN npm run build
-
-# Return to app root
-WORKDIR /app
-
-# Runtime stage
-FROM python:3.12-slim-bookworm AS runtime
-
-# Install only runtime system dependencies (no build tools)
-# Add Node.js 20.x LTS for running frontend
-RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     ffmpeg \
     supervisor \
+    nginx \
     curl \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
@@ -57,30 +16,18 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
 # Install uv using the official method
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 # Set the working directory in the container to /app
 WORKDIR /app
 
-# Copy the virtual environment from builder stage
-COPY --from=builder /app/.venv /app/.venv
+# Expose nginx port only (nginx will proxy to frontend:8502 and api:5055)
+EXPOSE 8899
 
-# Copy the application code
-COPY --from=builder /app /app
-
-# Copy built frontend from builder stage
-COPY --from=builder /app/frontend/.next/standalone /app/frontend/
-COPY --from=builder /app/frontend/.next/static /app/frontend/.next/static
-COPY --from=builder /app/frontend/public /app/frontend/public
-
-# Expose ports for Frontend and API
-EXPOSE 8502 5055
-
-RUN mkdir -p /app/data
-
-# Copy supervisord configuration
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Create log directories
-RUN mkdir -p /var/log/supervisor
+# Create necessary directories
+RUN mkdir -p /app/data /var/log/supervisor /etc/supervisor/conf.d
 
 # Runtime API URL Configuration
 # The API_URL environment variable can be set at container runtime to configure
@@ -92,4 +39,6 @@ RUN mkdir -p /var/log/supervisor
 #
 # Example: docker run -e API_URL=https://your-domain.com/api ...
 
+# Start supervisor to manage processes
+# Note: supervisord.conf should be mounted from host at /etc/supervisor/conf.d/supervisord.conf
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

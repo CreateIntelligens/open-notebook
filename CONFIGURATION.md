@@ -31,7 +31,7 @@ If you need to change the API URL (e.g., running on a different host, port, or d
 
 #### Option 1: Using docker-compose (Recommended)
 
-Edit your `docker.env` file:
+Edit your `.env` file:
 
 ```env
 API_URL=http://your-server-ip:5055
@@ -101,7 +101,7 @@ API_URL=http://localhost:3055
 ### Migration from Previous Versions
 
 If you were previously exposing port 5055 manually or had custom configurations, you may need to:
-1. Update your `docker.env` or environment variables to include `API_URL`
+1. Update your `.env` or environment variables to include `API_URL`
 2. Ensure port 5055 is exposed in your docker-compose.yml (it's now required)
 3. Remove any custom Next.js configuration or environment variables you may have added
 

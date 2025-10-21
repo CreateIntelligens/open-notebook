@@ -300,7 +300,7 @@ This happens when:
 
 1. **Always use HTTPS** in production with reverse proxies
 2. **Set `API_URL` explicitly** when using reverse proxies to avoid auto-detection issues
-3. **Use environment files** (`.env` or `docker.env`) to manage configuration
+3. **Use environment files** (`.env` or `.env`) to manage configuration
 4. **Test your setup** by accessing the frontend and checking browser console logs
 5. **Keep ports 5055 and 8502 accessible** from your reverse proxy container
 

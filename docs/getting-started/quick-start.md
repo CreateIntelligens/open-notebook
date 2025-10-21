@@ -38,7 +38,7 @@ services:
       - "8502:8502"  # Web UI
       - "5055:5055"  # API (required!)
     env_file:
-      - ./docker.env
+      - ./.env
     pull_policy: always
     volumes:
       - ./notebook_data:/app/data
@@ -46,7 +46,7 @@ services:
     restart: always
 ```
 
-**docker.env**:
+**.env**:
 ```env
 # Replace YOUR_OPENAI_API_KEY_HERE with your actual API key
 OPENAI_API_KEY=YOUR_OPENAI_API_KEY_HERE
@@ -204,7 +204,7 @@ Now that you have Open Notebook running:
 **Still not working?** See the [complete troubleshooting guide](../troubleshooting/quick-fixes.md).
 
 ### API Key Errors
-- Double-check your API key in `docker.env`
+- Double-check your API key in `.env`
 - Ensure you have credits in your OpenAI account
 - Verify no extra spaces around the key
 - Key should start with `sk-`

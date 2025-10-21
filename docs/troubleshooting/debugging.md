@@ -53,7 +53,7 @@ docker compose logs surrealdb
 
 #### Enable Debug Logging
 ```bash
-# Add to .env or docker.env
+# Add to .env or .env
 LOG_LEVEL=DEBUG
 
 # Restart services

@@ -5,8 +5,8 @@ data/
 .uploads/
 sqlite-db/
 surreal-data/
-docker.env
-!setup_guide/docker.env
+.env
+!setup_guide/.env
 notebook_data/
 # Python-specific
 *.py[cod]

@@ -141,7 +141,10 @@ export function ChatPanel({
                 <Clock className="h-4 w-4" />
                 <span className="text-xs">Sessions</span>
               </Button>
-              <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden">
+              <DialogContent
+                className="sm:max-w-[420px] p-0 overflow-hidden"
+                ariaDescription="Manage saved chat sessions for this source."
+              >
                 <SessionManager
                   sessions={sessions}
                   currentSessionId={currentSessionId ?? null}

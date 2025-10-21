@@ -17,7 +17,7 @@ services:
       - "8502:8502"
       - "5055:5055"
     env_file:
-      - ./docker.env
+      - ./.env
     depends_on:
       - surrealdb
     volumes:

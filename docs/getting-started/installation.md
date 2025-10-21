@@ -32,8 +32,8 @@ curl -O https://raw.githubusercontent.com/lfnovo/open-notebook/main/docker-compo
 curl -O https://raw.githubusercontent.com/lfnovo/open-notebook/main/.env.example
 
 # Rename and configure environment
-mv .env.example docker.env
-# Edit docker.env with your API keys
+mv .env.example .env
+# Edit .env with your API keys
 
 # Start Open Notebook
 docker compose up -d
@@ -123,7 +123,7 @@ User Browser → React frontend → FastAPI Backend → SurrealDB Database
 
 ## Environment Configuration
 
-Open Notebook uses environment variables for configuration. Create a `.env` file (or `docker.env` for Docker) based on the template below:
+Open Notebook uses environment variables for configuration. Create a `.env` file (or `.env` for Docker) based on the template below:
 
 ### Core Configuration
 ```env
@@ -357,7 +357,7 @@ services:
       - "8502:8502"
       - "5055:5055"
     env_file:
-      - ./docker.env
+      - ./.env
     pull_policy: always
     volumes:
       - ./notebook_data:/app/data
@@ -368,8 +368,8 @@ EOF
 
 3. **Create Environment File**
 ```bash
-# Create docker.env with your API keys
-cat > docker.env << 'EOF'
+# Create .env with your API keys
+cat > .env << 'EOF'
 # REQUIRED: At least one AI provider
 OPENAI_API_KEY=your-openai-key-here
 
@@ -401,13 +401,13 @@ For scalable production deployments:
 curl -O https://raw.githubusercontent.com/lfnovo/open-notebook/main/docker-compose.yml
 
 # Copy environment template
-curl -o docker.env https://raw.githubusercontent.com/lfnovo/open-notebook/main/.env.example
+curl -o .env https://raw.githubusercontent.com/lfnovo/open-notebook/main/.env.example
 ```
 
 2. **Configure Environment**
 ```bash
-# Edit docker.env with your API keys
-nano docker.env
+# Edit .env with your API keys
+nano .env
 ```
 
 3. **Start Services**
@@ -601,7 +601,7 @@ curl http://localhost:8502/healthz
 For public deployments, enable password protection:
 
 ```env
-# Add to your .env or docker.env file
+# Add to your .env or .env file
 OPEN_NOTEBOOK_PASSWORD=your_secure_password_here
 ```
 

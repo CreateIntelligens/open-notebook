@@ -91,7 +91,7 @@ body:
     attributes:
       label: Environment File
       description: |
-        If using an `.env` or `docker.env` file, please paste it here.
+        If using an `.env` or `.env` file, please paste it here.
 
         **⚠️ IMPORTANT: REDACT ALL API KEYS AND PASSWORDS!**
       placeholder: |

@@ -80,7 +80,7 @@ docker stats
    cat .env | grep -v "API_KEY"
    
    # For Docker
-   cat docker.env | grep -v "API_KEY"
+   cat .env | grep -v "API_KEY"
    ```
 
 4. **Test Basic Connectivity**
@@ -122,7 +122,7 @@ For complex issues that aren't covered in the basic guides:
 
 1. **Enable Debug Logging**
    ```bash
-   # Add to .env or docker.env
+   # Add to .env or .env
    LOG_LEVEL=DEBUG
    ```
 

@@ -35,11 +35,16 @@ export async function GET(request: NextRequest) {
     const hostHeader = request.headers.get('host')
 
     if (hostHeader) {
-      // Extract just the hostname (remove port if present)
-      const hostname = hostHeader.split(':')[0]
-
-      // Construct the API URL with port 5055
-      const apiUrl = `${proto}://${hostname}:5055`
+      // Use the same host:port as the incoming request
+      // Since nginx proxies everything through 8899, we just return the same URL
+      // Ensure port is included (default to 8899 if not present)
+      let apiUrl: string
+      if (hostHeader.includes(':')) {
+        apiUrl = `${proto}://${hostHeader}`
+      } else {
+        // No port in host header, add 8899
+        apiUrl = `${proto}://${hostHeader}:8899`
+      }
 
       console.log(`[runtime-config] Auto-detected API URL: ${apiUrl} (proto=${proto}, host=${hostHeader})`)
 
@@ -51,9 +56,9 @@ export async function GET(request: NextRequest) {
     console.error('[runtime-config] Auto-detection failed:', error)
   }
 
-  // Priority 3: Fallback to localhost
-  console.log('[runtime-config] Using fallback: http://localhost:5055')
+  // Priority 3: Fallback to localhost:8899 (nginx port)
+  console.log('[runtime-config] Using fallback: http://localhost:8899')
   return NextResponse.json({
-    apiUrl: 'http://localhost:5055',
+    apiUrl: 'http://localhost:8899',
   })
 }

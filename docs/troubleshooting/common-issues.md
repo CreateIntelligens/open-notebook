@@ -603,7 +603,7 @@ Or provide it when logging into the web interface.
    ls -la .env
    
    # For Docker
-   ls -la docker.env
+   ls -la .env
    ```
 
 2. **Verify file format**:

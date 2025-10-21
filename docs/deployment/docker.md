@@ -95,7 +95,7 @@ OpenAI provides everything you need to get started:
        restart: always
    ```
 
-3. **Create `docker.env` file** (optional but recommended):
+3. **Create `.env` file** (optional but recommended):
    ```env
    # Required: Your OpenAI API key
    OPENAI_API_KEY=sk-your-actual-key-here
@@ -174,7 +174,7 @@ services:
       - "8502:8502"  # Next.js Frontend
       - "5055:5055"  # REST API
     env_file:
-      - ./docker.env
+      - ./.env
     volumes:
       - ./notebook_data:/app/data
     depends_on:
@@ -184,7 +184,7 @@ services:
 
 ### Environment Configuration
 
-Create a comprehensive `docker.env` file:
+Create a comprehensive `.env` file:
 
 ```env
 # Required: Database connection
@@ -216,7 +216,7 @@ ELEVENLABS_API_KEY=your-elevenlabs-key
 OpenRouter gives you access to virtually every AI model through a single API:
 
 1. **Get your API key** at [openrouter.ai](https://openrouter.ai/keys)
-2. **Add to your `docker.env`**:
+2. **Add to your `.env`**:
    ```env
    OPENROUTER_API_KEY=sk-or-your-openrouter-key
    ```
@@ -318,7 +318,7 @@ services:
       - "127.0.0.1:8502:8502"
       - "127.0.0.1:5055:5055"
     env_file:
-      - ./docker.env
+      - ./.env
     volumes:
       - ./notebook_data:/app/data
     depends_on:
@@ -419,7 +419,7 @@ docker compose -p 8503:8502 up -d
 ```
 
 **API key errors**:
-1. Verify keys are set correctly in `docker.env`
+1. Verify keys are set correctly in `.env`
 2. Check you have credits with your AI provider
 3. Ensure no extra spaces in the key
 
@@ -509,7 +509,7 @@ services:
       - "8502:8502"  # Next.js Frontend
       - "5055:5055"  # REST API
     env_file:
-      - ./docker.env
+      - ./.env
     volumes:
       - ./notebook_data:/app/data
     depends_on:

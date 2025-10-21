@@ -29,7 +29,10 @@ export function SourceInsightDialog({ open, onOpenChange, insight }: SourceInsig
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden">
+      <DialogContent
+        className="sm:max-w-3xl max-h-[90vh] overflow-hidden"
+        ariaDescription="Displays the full content and metadata for the selected insight."
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between gap-2">
             <span>Source Insight</span>
