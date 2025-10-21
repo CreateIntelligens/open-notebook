@@ -12,7 +12,16 @@ router = APIRouter()
 
 @router.post("/notebooks/{notebook_id}/context", response_model=ContextResponse)
 async def get_notebook_context(notebook_id: str, context_request: ContextRequest):
-    """Get context for a notebook based on configuration."""
+    """
+    Get context for a notebook based on configuration.
+
+    根據配置獲取筆記本的上下文內容。
+
+    - **notebook_id**: 筆記本 ID
+    - **context_config**: 上下文配置（指定要包含哪些來源和筆記）
+      - **sources**: 來源配置（full content, insights, not in context）
+      - **notes**: 筆記配置（full content, not in context）
+    """
     try:
         # Verify notebook exists
         notebook = await Notebook.get(notebook_id)

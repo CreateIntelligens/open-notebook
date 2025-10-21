@@ -13,10 +13,17 @@ router = APIRouter()
 
 @router.get("/notebooks", response_model=List[NotebookResponse])
 async def get_notebooks(
-    archived: Optional[bool] = Query(None, description="Filter by archived status"),
-    order_by: str = Query("updated desc", description="Order by field and direction"),
+    archived: Optional[bool] = Query(None, description="Filter by archived status | 依封存狀態篩選"),
+    order_by: str = Query("updated desc", description="Order by field and direction | 排序欄位和方向"),
 ):
-    """Get all notebooks with optional filtering and ordering."""
+    """
+    Get all notebooks with optional filtering and ordering.
+
+    獲取所有筆記本，支援篩選和排序。
+
+    - **archived**: 篩選封存狀態 (true/false/null)
+    - **order_by**: 排序方式，例如 "updated desc" 或 "created asc"
+    """
     try:
         # Build the query with counts
         query = f"""
@@ -55,7 +62,14 @@ async def get_notebooks(
 
 @router.post("/notebooks", response_model=NotebookResponse)
 async def create_notebook(notebook: NotebookCreate):
-    """Create a new notebook."""
+    """
+    Create a new notebook.
+
+    創建新的筆記本。
+
+    - **name**: 筆記本名稱（必填）
+    - **description**: 筆記本描述（選填）
+    """
     try:
         new_notebook = Notebook(
             name=notebook.name,
@@ -84,7 +98,13 @@ async def create_notebook(notebook: NotebookCreate):
 
 @router.get("/notebooks/{notebook_id}", response_model=NotebookResponse)
 async def get_notebook(notebook_id: str):
-    """Get a specific notebook by ID."""
+    """
+    Get a specific notebook by ID.
+
+    根據 ID 獲取特定筆記本的詳細資訊。
+
+    - **notebook_id**: 筆記本的唯一識別碼
+    """
     try:
         # Query with counts for single notebook
         query = """
@@ -120,7 +140,16 @@ async def get_notebook(notebook_id: str):
 
 @router.put("/notebooks/{notebook_id}", response_model=NotebookResponse)
 async def update_notebook(notebook_id: str, notebook_update: NotebookUpdate):
-    """Update a notebook."""
+    """
+    Update a notebook.
+
+    更新筆記本資訊。
+
+    - **notebook_id**: 筆記本的唯一識別碼
+    - **name**: 新的筆記本名稱（選填）
+    - **description**: 新的筆記本描述（選填）
+    - **archived**: 封存狀態（選填）
+    """
     try:
         notebook = await Notebook.get(notebook_id)
         if not notebook:
@@ -182,7 +211,14 @@ async def update_notebook(notebook_id: str, notebook_update: NotebookUpdate):
 
 @router.post("/notebooks/{notebook_id}/sources/{source_id}")
 async def add_source_to_notebook(notebook_id: str, source_id: str):
-    """Add an existing source to a notebook (create the reference)."""
+    """
+    Add an existing source to a notebook.
+
+    將現有來源添加到筆記本中。
+
+    - **notebook_id**: 筆記本的唯一識別碼
+    - **source_id**: 來源的唯一識別碼
+    """
     try:
         # Check if notebook exists
         notebook = await Notebook.get(notebook_id)
@@ -227,7 +263,14 @@ async def add_source_to_notebook(notebook_id: str, source_id: str):
 
 @router.delete("/notebooks/{notebook_id}/sources/{source_id}")
 async def remove_source_from_notebook(notebook_id: str, source_id: str):
-    """Remove a source from a notebook (delete the reference)."""
+    """
+    Remove a source from a notebook.
+
+    從筆記本中移除來源。
+
+    - **notebook_id**: 筆記本的唯一識別碼
+    - **source_id**: 來源的唯一識別碼
+    """
     try:
         # Check if notebook exists
         notebook = await Notebook.get(notebook_id)
@@ -257,7 +300,13 @@ async def remove_source_from_notebook(notebook_id: str, source_id: str):
 
 @router.delete("/notebooks/{notebook_id}")
 async def delete_notebook(notebook_id: str):
-    """Delete a notebook."""
+    """
+    Delete a notebook.
+
+    刪除筆記本。
+
+    - **notebook_id**: 要刪除的筆記本唯一識別碼
+    """
     try:
         notebook = await Notebook.get(notebook_id)
         if not notebook:

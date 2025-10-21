@@ -11,7 +11,13 @@ router = APIRouter()
 
 @router.get("/insights/{insight_id}", response_model=SourceInsightResponse)
 async def get_insight(insight_id: str):
-    """Get a specific insight by ID."""
+    """
+    Get a specific insight by ID.
+
+    根據 ID 獲取特定的洞察。
+
+    - **insight_id**: 洞察的唯一識別碼
+    """
     try:
         insight = await SourceInsight.get(insight_id)
         if not insight:
@@ -37,7 +43,13 @@ async def get_insight(insight_id: str):
 
 @router.delete("/insights/{insight_id}")
 async def delete_insight(insight_id: str):
-    """Delete a specific insight."""
+    """
+    Delete a specific insight.
+
+    刪除特定的洞察。
+
+    - **insight_id**: 要刪除的洞察 ID
+    """
     try:
         insight = await SourceInsight.get(insight_id)
         if not insight:
@@ -55,7 +67,14 @@ async def delete_insight(insight_id: str):
 
 @router.post("/insights/{insight_id}/save-as-note", response_model=NoteResponse)
 async def save_insight_as_note(insight_id: str, request: SaveAsNoteRequest):
-    """Convert an insight to a note."""
+    """
+    Convert an insight to a note.
+
+    將洞察轉換為筆記。
+
+    - **insight_id**: 洞察 ID
+    - **notebook_id**: 要儲存到的筆記本 ID
+    """
     try:
         insight = await SourceInsight.get(insight_id)
         if not insight:

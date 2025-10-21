@@ -66,7 +66,15 @@ async def create_source_chat_session(
     request: CreateSourceChatSessionRequest,
     source_id: str = Path(..., description="Source ID")
 ):
-    """Create a new chat session for a source."""
+    """
+    Create a new chat session for a source.
+
+    為來源創建新的聊天會話。
+
+    - **source_id**: 來源的唯一識別碼
+    - **title**: 會話標題（選填）
+    - **model_override**: 此會話的模型覆寫（選填）
+    """
     try:
         # Verify source exists
         full_source_id = source_id if source_id.startswith("source:") else f"source:{source_id}"
@@ -104,7 +112,13 @@ async def create_source_chat_session(
 async def get_source_chat_sessions(
     source_id: str = Path(..., description="Source ID")
 ):
-    """Get all chat sessions for a source."""
+    """
+    Get all chat sessions for a source.
+
+    獲取來源的所有聊天會話。
+
+    - **source_id**: 來源的唯一識別碼
+    """
     try:
         # Verify source exists
         full_source_id = source_id if source_id.startswith("source:") else f"source:{source_id}"
@@ -150,7 +164,14 @@ async def get_source_chat_session(
     source_id: str = Path(..., description="Source ID"),
     session_id: str = Path(..., description="Session ID")
 ):
-    """Get a specific source chat session with its messages."""
+    """
+    Get a specific source chat session with its messages.
+
+    獲取特定的來源聊天會話及其訊息。
+
+    - **source_id**: 來源的唯一識別碼
+    - **session_id**: 會話的唯一識別碼
+    """
     try:
         # Verify source exists
         full_source_id = source_id if source_id.startswith("source:") else f"source:{source_id}"
@@ -226,7 +247,16 @@ async def update_source_chat_session(
     source_id: str = Path(..., description="Source ID"),
     session_id: str = Path(..., description="Session ID")
 ):
-    """Update source chat session title and/or model override."""
+    """
+    Update source chat session title and/or model override.
+
+    更新來源聊天會話的標題和/或模型覆寫。
+
+    - **source_id**: 來源的唯一識別碼
+    - **session_id**: 會話的唯一識別碼
+    - **title**: 新的會話標題（選填）
+    - **model_override**: 新的模型覆寫（選填）
+    """
     try:
         # Verify source exists
         full_source_id = source_id if source_id.startswith("source:") else f"source:{source_id}"
@@ -278,7 +308,14 @@ async def delete_source_chat_session(
     source_id: str = Path(..., description="Source ID"),
     session_id: str = Path(..., description="Session ID")
 ):
-    """Delete a source chat session."""
+    """
+    Delete a source chat session.
+
+    刪除來源聊天會話。
+
+    - **source_id**: 來源的唯一識別碼
+    - **session_id**: 要刪除的會話 ID
+    """
     try:
         # Verify source exists
         full_source_id = source_id if source_id.startswith("source:") else f"source:{source_id}"
@@ -391,7 +428,16 @@ async def send_message_to_source_chat(
     source_id: str = Path(..., description="Source ID"),
     session_id: str = Path(..., description="Session ID")
 ):
-    """Send a message to source chat session with SSE streaming response."""
+    """
+    Send a message to source chat session with SSE streaming response.
+
+    向來源聊天會話發送訊息，並以 SSE 串流回應。
+
+    - **source_id**: 來源的唯一識別碼
+    - **session_id**: 會話的唯一識別碼
+    - **message**: 使用者訊息內容
+    - **model_override**: 此訊息的模型覆寫（選填）
+    """
     try:
         # Verify source exists
         full_source_id = source_id if source_id.startswith("source:") else f"source:{source_id}"

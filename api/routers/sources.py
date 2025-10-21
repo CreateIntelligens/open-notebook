@@ -151,13 +151,23 @@ def parse_source_form_data(
 
 @router.get("/sources", response_model=List[SourceListResponse])
 async def get_sources(
-    notebook_id: Optional[str] = Query(None, description="Filter by notebook ID"),
-    limit: int = Query(50, ge=1, le=100, description="Number of sources to return (1-100)"),
-    offset: int = Query(0, ge=0, description="Number of sources to skip"),
-    sort_by: str = Query("updated", description="Field to sort by (created or updated)"),
-    sort_order: str = Query("desc", description="Sort order (asc or desc)"),
+    notebook_id: Optional[str] = Query(None, description="Filter by notebook ID | 依筆記本 ID 篩選"),
+    limit: int = Query(50, ge=1, le=100, description="Number of sources to return (1-100) | 返回的來源數量 (1-100)"),
+    offset: int = Query(0, ge=0, description="Number of sources to skip | 跳過的來源數量"),
+    sort_by: str = Query("updated", description="Field to sort by (created or updated) | 排序欄位 (created 或 updated)"),
+    sort_order: str = Query("desc", description="Sort order (asc or desc) | 排序方向 (asc 或 desc)"),
 ):
-    """Get sources with pagination and sorting support."""
+    """
+    Get sources with pagination and sorting support.
+
+    獲取來源列表，支援分頁和排序。
+
+    - **notebook_id**: 篩選特定筆記本的來源
+    - **limit**: 每頁顯示的數量 (1-100)
+    - **offset**: 從第幾筆開始取
+    - **sort_by**: 排序欄位（created 或 updated）
+    - **sort_order**: 排序方向（asc 升序或 desc 降序）
+    """
     try:
         # Validate sort parameters
         if sort_by not in ["created", "updated"]:
@@ -322,7 +332,22 @@ async def create_source(
         parse_source_form_data
     ),
 ):
-    """Create a new source with support for both JSON and multipart form data."""
+    """
+    Create a new source with support for both JSON and multipart form data.
+
+    創建新的來源，支援 JSON 和多部分表單數據。
+
+    - **type**: 來源類型（file, url, text, youtube）
+    - **file**: 檔案上傳（用於 file 類型）
+    - **url**: URL 地址（用於 url 或 youtube 類型）
+    - **content**: 文字內容（用於 text 類型）
+    - **title**: 來源標題（選填）
+    - **notebooks**: 要添加到的筆記本 ID 列表（選填）
+    - **transformations**: 要套用的轉換模板 ID 列表（選填）
+    - **embed**: 是否自動建立向量嵌入（true/false）
+    - **delete_source**: 處理後是否刪除原始檔案（true/false）
+    - **async_processing**: 是否使用非同步處理（true/false）
+    """
     source_data, upload_file = form_data
 
     try:
@@ -588,7 +613,11 @@ async def create_source(
 
 @router.post("/sources/json", response_model=SourceResponse)
 async def create_source_json(source_data: SourceCreate):
-    """Create a new source using JSON payload (legacy endpoint for backward compatibility)."""
+    """
+    Create a new source using JSON payload (legacy endpoint for backward compatibility).
+
+    使用 JSON 格式創建新來源（向後相容的舊端點）。
+    """
     # Convert to form data format and call main endpoint
     form_data = (source_data, None)
     return await create_source(form_data)
@@ -635,7 +664,13 @@ def _is_source_file_available(source: Source) -> Optional[bool]:
 
 @router.get("/sources/{source_id}", response_model=SourceResponse)
 async def get_source(source_id: str):
-    """Get a specific source by ID."""
+    """
+    Get a specific source by ID.
+
+    根據 ID 獲取特定來源的詳細資訊。
+
+    - **source_id**: 來源的唯一識別碼
+    """
     try:
         source = await Source.get(source_id)
         if not source:
@@ -693,7 +728,13 @@ async def get_source(source_id: str):
 
 @router.head("/sources/{source_id}/download")
 async def check_source_file(source_id: str):
-    """Check if a source has a downloadable file."""
+    """
+    Check if a source has a downloadable file.
+
+    檢查來源是否有可下載的檔案。
+
+    - **source_id**: 來源的唯一識別碼
+    """
     try:
         await _resolve_source_file(source_id)
         return Response(status_code=200)
@@ -706,7 +747,13 @@ async def check_source_file(source_id: str):
 
 @router.get("/sources/{source_id}/download")
 async def download_source_file(source_id: str):
-    """Download the original file associated with an uploaded source."""
+    """
+    Download the original file associated with an uploaded source.
+
+    下載上傳來源的原始檔案。
+
+    - **source_id**: 來源的唯一識別碼
+    """
     try:
         resolved_path, filename = await _resolve_source_file(source_id)
         return FileResponse(
@@ -723,7 +770,13 @@ async def download_source_file(source_id: str):
 
 @router.get("/sources/{source_id}/status", response_model=SourceStatusResponse)
 async def get_source_status(source_id: str):
-    """Get processing status for a source."""
+    """
+    Get processing status for a source.
+
+    獲取來源的處理狀態。
+
+    - **source_id**: 來源的唯一識別碼
+    """
     try:
         # First, verify source exists
         source = await Source.get(source_id)
@@ -785,7 +838,15 @@ async def get_source_status(source_id: str):
 
 @router.put("/sources/{source_id}", response_model=SourceResponse)
 async def update_source(source_id: str, source_update: SourceUpdate):
-    """Update a source."""
+    """
+    Update a source.
+
+    更新來源資訊。
+
+    - **source_id**: 來源的唯一識別碼
+    - **title**: 新的來源標題（選填）
+    - **topics**: 新的主題標籤列表（選填）
+    """
     try:
         source = await Source.get(source_id)
         if not source:
@@ -827,7 +888,13 @@ async def update_source(source_id: str, source_update: SourceUpdate):
 
 @router.post("/sources/{source_id}/retry", response_model=SourceResponse)
 async def retry_source_processing(source_id: str):
-    """Retry processing for a failed or stuck source."""
+    """
+    Retry processing for a failed or stuck source.
+
+    重試處理失敗或卡住的來源。
+
+    - **source_id**: 來源的唯一識別碼
+    """
     try:
         # First, verify source exists
         source = await Source.get(source_id)
@@ -952,7 +1019,13 @@ async def retry_source_processing(source_id: str):
 
 @router.delete("/sources/{source_id}")
 async def delete_source(source_id: str):
-    """Delete a source."""
+    """
+    Delete a source.
+
+    刪除來源。
+
+    - **source_id**: 要刪除的來源 ID
+    """
     try:
         source = await Source.get(source_id)
         if not source:
@@ -970,7 +1043,13 @@ async def delete_source(source_id: str):
 
 @router.get("/sources/{source_id}/insights", response_model=List[SourceInsightResponse])
 async def get_source_insights(source_id: str):
-    """Get all insights for a specific source."""
+    """
+    Get all insights for a specific source.
+
+    獲取特定來源的所有洞察。
+
+    - **source_id**: 來源的唯一識別碼
+    """
     try:
         source = await Source.get(source_id)
         if not source:
@@ -999,7 +1078,14 @@ async def get_source_insights(source_id: str):
 
 @router.post("/sources/{source_id}/insights", response_model=SourceInsightResponse)
 async def create_source_insight(source_id: str, request: CreateSourceInsightRequest):
-    """Create a new insight for a source by running a transformation."""
+    """
+    Create a new insight for a source by running a transformation.
+
+    透過執行轉換為來源創建新的洞察。
+
+    - **source_id**: 來源的唯一識別碼
+    - **transformation_id**: 要使用的轉換模板 ID
+    """
     try:
         # Get source
         source = await Source.get(source_id)

@@ -41,7 +41,18 @@ def _resolve_audio_path(audio_file: str) -> Path:
 async def generate_podcast(request: PodcastGenerationRequest):
     """
     Generate a podcast episode using Episode Profiles.
+
+    使用劇集配置生成播客節目。
+
     Returns immediately with job ID for status tracking.
+    立即返回任務 ID 以供狀態追蹤。
+
+    - **episode_profile**: 劇集配置名稱
+    - **speaker_profile**: 講者配置名稱
+    - **episode_name**: 節目名稱
+    - **notebook_id**: 筆記本 ID（選填）
+    - **content**: 播客內容
+    - **briefing_suffix**: 簡報後綴（選填）
     """
     try:
         job_id = await PodcastService.submit_generation_job(
@@ -70,7 +81,13 @@ async def generate_podcast(request: PodcastGenerationRequest):
 
 @router.get("/podcasts/jobs/{job_id}")
 async def get_podcast_job_status(job_id: str):
-    """Get the status of a podcast generation job"""
+    """
+    Get the status of a podcast generation job.
+
+    獲取播客生成任務的狀態。
+
+    - **job_id**: 任務 ID
+    """
     try:
         status_data = await PodcastService.get_job_status(job_id)
         return status_data
@@ -84,7 +101,11 @@ async def get_podcast_job_status(job_id: str):
 
 @router.get("/podcasts/episodes", response_model=List[PodcastEpisodeResponse])
 async def list_podcast_episodes():
-    """List all podcast episodes"""
+    """
+    List all podcast episodes.
+
+    列出所有播客節目。
+    """
     try:
         episodes = await PodcastService.list_episodes()
 
@@ -138,7 +159,13 @@ async def list_podcast_episodes():
 
 @router.get("/podcasts/episodes/{episode_id}", response_model=PodcastEpisodeResponse)
 async def get_podcast_episode(episode_id: str):
-    """Get a specific podcast episode"""
+    """
+    Get a specific podcast episode.
+
+    獲取特定播客節目的詳細資訊。
+
+    - **episode_id**: 播客節目的唯一識別碼
+    """
     try:
         episode = await PodcastService.get_episode(episode_id)
 
@@ -180,7 +207,13 @@ async def get_podcast_episode(episode_id: str):
 
 @router.get("/podcasts/episodes/{episode_id}/audio")
 async def stream_podcast_episode_audio(episode_id: str):
-    """Stream the audio file associated with a podcast episode"""
+    """
+    Stream the audio file associated with a podcast episode.
+
+    串流播放播客節目的音訊檔案。
+
+    - **episode_id**: 播客節目的唯一識別碼
+    """
     try:
         episode = await PodcastService.get_episode(episode_id)
     except HTTPException:
@@ -205,7 +238,13 @@ async def stream_podcast_episode_audio(episode_id: str):
 
 @router.delete("/podcasts/episodes/{episode_id}")
 async def delete_podcast_episode(episode_id: str):
-    """Delete a podcast episode and its associated audio file"""
+    """
+    Delete a podcast episode and its associated audio file.
+
+    刪除播客節目及其關聯的音訊檔案。
+
+    - **episode_id**: 要刪除的播客節目 ID
+    """
     try:
         # Get the episode first to check if it exists and get the audio file path
         episode = await PodcastService.get_episode(episode_id)

@@ -22,7 +22,13 @@ router = APIRouter()
 
 @router.get("/transformations", response_model=List[TransformationResponse])
 async def get_transformations():
-    """Get all transformations."""
+    """
+    Get all transformations.
+
+    獲取所有內容轉換模板。
+
+    轉換模板用於對來源內容進行自動化處理，例如摘要、翻譯、重寫等。
+    """
     try:
         transformations = await Transformation.get_all(order_by="name asc")
 
@@ -48,7 +54,17 @@ async def get_transformations():
 
 @router.post("/transformations", response_model=TransformationResponse)
 async def create_transformation(transformation_data: TransformationCreate):
-    """Create a new transformation."""
+    """
+    Create a new transformation.
+
+    創建新的內容轉換模板。
+
+    - **name**: 轉換名稱（唯一識別碼）
+    - **title**: 轉換標題
+    - **description**: 轉換描述
+    - **prompt**: 轉換提示詞（用於 AI 處理）
+    - **apply_default**: 是否預設套用（選填）
+    """
     try:
         new_transformation = Transformation(
             name=transformation_data.name,
@@ -82,7 +98,13 @@ async def create_transformation(transformation_data: TransformationCreate):
     "/transformations/{transformation_id}", response_model=TransformationResponse
 )
 async def get_transformation(transformation_id: str):
-    """Get a specific transformation by ID."""
+    """
+    Get a specific transformation by ID.
+
+    根據 ID 獲取特定的轉換模板。
+
+    - **transformation_id**: 轉換模板的唯一識別碼
+    """
     try:
         transformation = await Transformation.get(transformation_id)
         if not transformation:
@@ -113,7 +135,18 @@ async def get_transformation(transformation_id: str):
 async def update_transformation(
     transformation_id: str, transformation_update: TransformationUpdate
 ):
-    """Update a transformation."""
+    """
+    Update a transformation.
+
+    更新轉換模板。
+
+    - **transformation_id**: 轉換模板的唯一識別碼
+    - **name**: 新的轉換名稱（選填）
+    - **title**: 新的轉換標題（選填）
+    - **description**: 新的轉換描述（選填）
+    - **prompt**: 新的轉換提示詞（選填）
+    - **apply_default**: 是否預設套用（選填）
+    """
     try:
         transformation = await Transformation.get(transformation_id)
         if not transformation:
@@ -156,7 +189,13 @@ async def update_transformation(
 
 @router.delete("/transformations/{transformation_id}")
 async def delete_transformation(transformation_id: str):
-    """Delete a transformation."""
+    """
+    Delete a transformation.
+
+    刪除轉換模板。
+
+    - **transformation_id**: 要刪除的轉換模板 ID
+    """
     try:
         transformation = await Transformation.get(transformation_id)
         if not transformation:
@@ -176,7 +215,15 @@ async def delete_transformation(transformation_id: str):
 
 @router.post("/transformations/execute", response_model=TransformationExecuteResponse)
 async def execute_transformation(execute_request: TransformationExecuteRequest):
-    """Execute a transformation on input text."""
+    """
+    Execute a transformation on input text.
+
+    對輸入文字執行轉換。
+
+    - **transformation_id**: 要使用的轉換模板 ID
+    - **model_id**: 要使用的模型 ID
+    - **input_text**: 要轉換的輸入文字
+    """
     try:
         # Validate transformation exists
         transformation = await Transformation.get(execute_request.transformation_id)
@@ -214,7 +261,13 @@ async def execute_transformation(execute_request: TransformationExecuteRequest):
 
 @router.get("/transformations/default-prompt", response_model=DefaultPromptResponse)
 async def get_default_prompt():
-    """Get the default transformation prompt."""
+    """
+    Get the default transformation prompt.
+
+    獲取預設的轉換提示詞。
+
+    返回全域預設的轉換指令模板。
+    """
     try:
         default_prompts: DefaultPrompts = await DefaultPrompts.get_instance()  # type: ignore[assignment]
 
@@ -230,7 +283,13 @@ async def get_default_prompt():
 
 @router.put("/transformations/default-prompt", response_model=DefaultPromptResponse)
 async def update_default_prompt(prompt_update: DefaultPromptUpdate):
-    """Update the default transformation prompt."""
+    """
+    Update the default transformation prompt.
+
+    更新預設的轉換提示詞。
+
+    - **transformation_instructions**: 新的預設轉換指令
+    """
     try:
         default_prompts: DefaultPrompts = await DefaultPrompts.get_instance()  # type: ignore[assignment]
 

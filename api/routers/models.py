@@ -34,9 +34,15 @@ def _check_openai_compatible_support(mode: str) -> bool:
 
 @router.get("/models", response_model=List[ModelResponse])
 async def get_models(
-    type: Optional[str] = Query(None, description="Filter by model type")
+    type: Optional[str] = Query(None, description="Filter by model type | 依模型類型篩選")
 ):
-    """Get all configured models with optional type filtering."""
+    """
+    Get all configured models with optional type filtering.
+
+    獲取所有已配置的模型，可依類型篩選。
+
+    - **type**: 模型類型篩選（chat, embedding 等，選填）
+    """
     try:
         if type:
             models = await Model.get_models_by_type(type)
@@ -61,7 +67,15 @@ async def get_models(
 
 @router.post("/models", response_model=ModelResponse)
 async def create_model(model_data: ModelCreate):
-    """Create a new model configuration."""
+    """
+    Create a new model configuration.
+
+    創建新的模型配置。
+
+    - **name**: 模型名稱（例如：gpt-4, claude-3-opus）
+    - **provider**: 提供商（openai, anthropic, google, openai_compatible 等）
+    - **type**: 模型類型（chat 或 embedding）
+    """
     try:
         # Validate model type
         valid_types = ["language", "embedding", "text_to_speech", "speech_to_text"]
@@ -95,7 +109,13 @@ async def create_model(model_data: ModelCreate):
 
 @router.delete("/models/{model_id}")
 async def delete_model(model_id: str):
-    """Delete a model configuration."""
+    """
+    Delete a model configuration.
+
+    刪除模型配置。
+
+    - **model_id**: 要刪除的模型 ID
+    """
     try:
         model = await Model.get(model_id)
         if not model:
@@ -113,7 +133,13 @@ async def delete_model(model_id: str):
 
 @router.get("/models/defaults", response_model=DefaultModelsResponse)
 async def get_default_models():
-    """Get default model assignments."""
+    """
+    Get default model assignments.
+
+    獲取預設的模型分配設定。
+
+    返回各種用途的預設模型配置（聊天、轉換、嵌入等）。
+    """
     try:
         defaults = await DefaultModels.get_instance()
 
@@ -133,7 +159,19 @@ async def get_default_models():
 
 @router.put("/models/defaults", response_model=DefaultModelsResponse)
 async def update_default_models(defaults_data: DefaultModelsResponse):
-    """Update default model assignments."""
+    """
+    Update default model assignments.
+
+    更新預設的模型分配設定。
+
+    - **default_chat_model**: 預設聊天模型 ID（選填）
+    - **default_transformation_model**: 預設轉換模型 ID（選填）
+    - **large_context_model**: 大上下文模型 ID（選填）
+    - **default_text_to_speech_model**: 預設文字轉語音模型 ID（選填）
+    - **default_speech_to_text_model**: 預設語音轉文字模型 ID（選填）
+    - **default_embedding_model**: 預設向量嵌入模型 ID（選填）
+    - **default_tools_model**: 預設工具模型 ID（選填）
+    """
     try:
         defaults = await DefaultModels.get_instance()
         
@@ -177,7 +215,13 @@ async def update_default_models(defaults_data: DefaultModelsResponse):
 
 @router.get("/models/providers", response_model=ProviderAvailabilityResponse)
 async def get_provider_availability():
-    """Get provider availability based on environment variables."""
+    """
+    Get provider availability based on environment variables.
+
+    獲取基於環境變數的提供商可用性。
+
+    檢查各 AI 提供商的 API 金鑰配置狀態，返回可用和不可用的提供商列表及其支援的模型類型。
+    """
     try:
         # Check which providers have API keys configured
         provider_status = {

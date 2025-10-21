@@ -11,7 +11,15 @@ router = APIRouter()
 
 @router.post("/embed", response_model=EmbedResponse)
 async def embed_content(embed_request: EmbedRequest):
-    """Embed content for vector search."""
+    """
+    Embed content for vector search.
+
+    為內容建立向量嵌入以支援向量搜尋。
+
+    - **item_id**: 項目 ID（來源或筆記）
+    - **item_type**: 項目類型（source 或 note）
+    - **async_processing**: 是否使用非同步處理（true/false）
+    """
     try:
         # Check if embedding model is available
         if not await model_manager.get_embedding_model():

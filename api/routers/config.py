@@ -127,11 +127,24 @@ async def get_config(request: Request):
     """
     Get frontend configuration.
 
+    獲取前端配置資訊。
+
     Returns version information and health status.
+    返回版本資訊和健康狀態。
+
+    包括：
+    - **version**: 當前版本號
+    - **latestVersion**: 最新可用版本（從 GitHub 檢查）
+    - **hasUpdate**: 是否有更新可用
+    - **dbStatus**: 資料庫狀態（online 或 offline）
+
     Note: The frontend determines the API URL via its own runtime-config endpoint,
     so this endpoint no longer returns apiUrl.
+    注意：前端透過自己的 runtime-config 端點決定 API URL，
+    所以此端點不再返回 apiUrl。
 
     Also checks for version updates from GitHub (with caching and error handling).
+    會從 GitHub 檢查版本更新（帶有快取和錯誤處理）。
     """
     # Get current version
     current_version = get_version()

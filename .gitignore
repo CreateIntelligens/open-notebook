@@ -1,4 +1,5 @@
-.env
+
+ssl/
 prompts/patterns/user/
 /notebooks/
 data/
@@ -132,5 +133,3 @@ doc_exports/
 
 specs/
 .claude
-
-.playwright-mcp/

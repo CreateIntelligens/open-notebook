@@ -16,7 +16,18 @@ router = APIRouter()
 
 @router.post("/search", response_model=SearchResponse)
 async def search_knowledge_base(search_request: SearchRequest):
-    """Search the knowledge base using text or vector search."""
+    """
+    Search the knowledge base using text or vector search.
+
+    在知識庫中搜尋，支援文字搜尋或向量搜尋。
+
+    - **query**: 搜尋關鍵字或問題
+    - **type**: 搜尋類型（text 文字搜尋 或 vector 向量搜尋）
+    - **limit**: 返回結果數量上限
+    - **search_sources**: 是否搜尋來源內容
+    - **search_notes**: 是否搜尋筆記內容
+    - **minimum_score**: 向量搜尋的最低相似度分數（0-1）
+    """
     try:
         if search_request.type == "vector":
             # Check if embedding model is available for vector search
@@ -109,7 +120,21 @@ async def stream_ask_response(
 
 @router.post("/search/ask")
 async def ask_knowledge_base(ask_request: AskRequest):
-    """Ask the knowledge base a question using AI models."""
+    """
+    Ask the knowledge base a question using AI models (streaming response).
+
+    使用 AI 模型向知識庫提問（串流回應）。
+
+    - **question**: 要問的問題
+    - **strategy_model**: 策略模型 ID（用於分析問題和規劃搜尋策略）
+    - **answer_model**: 回答模型 ID（用於生成初步答案）
+    - **final_answer_model**: 最終答案模型 ID（用於整合並生成最終答案）
+
+    此端點會以 Server-Sent Events (SSE) 格式串流返回結果，包括：
+    - 搜尋策略 (strategy)
+    - 初步答案 (answer)
+    - 最終答案 (final_answer)
+    """
     try:
         # Validate models exist
         strategy_model = await Model.get(ask_request.strategy_model)
@@ -156,7 +181,18 @@ async def ask_knowledge_base(ask_request: AskRequest):
 
 @router.post("/search/ask/simple", response_model=AskResponse)
 async def ask_knowledge_base_simple(ask_request: AskRequest):
-    """Ask the knowledge base a question and return a simple response (non-streaming)."""
+    """
+    Ask the knowledge base a question and return a simple response (non-streaming).
+
+    使用 AI 模型向知識庫提問並返回簡單回應（非串流）。
+
+    - **question**: 要問的問題
+    - **strategy_model**: 策略模型 ID
+    - **answer_model**: 回答模型 ID
+    - **final_answer_model**: 最終答案模型 ID
+
+    此端點會等待完整處理後，直接返回最終答案。
+    """
     try:
         # Validate models exist
         strategy_model = await Model.get(ask_request.strategy_model)

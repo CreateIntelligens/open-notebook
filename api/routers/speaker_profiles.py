@@ -20,7 +20,13 @@ class SpeakerProfileResponse(BaseModel):
 
 @router.get("/speaker-profiles", response_model=List[SpeakerProfileResponse])
 async def list_speaker_profiles():
-    """List all available speaker profiles"""
+    """
+    List all available speaker profiles.
+
+    列出所有可用的講者配置。
+
+    返回系統中所有播客講者配置的清單。
+    """
     try:
         profiles = await SpeakerProfile.get_all(order_by="name asc")
         
@@ -46,7 +52,13 @@ async def list_speaker_profiles():
 
 @router.get("/speaker-profiles/{profile_name}", response_model=SpeakerProfileResponse)
 async def get_speaker_profile(profile_name: str):
-    """Get a specific speaker profile by name"""
+    """
+    Get a specific speaker profile by name.
+
+    根據名稱獲取特定的講者配置。
+
+    - **profile_name**: 講者配置的名稱
+    """
     try:
         profile = await SpeakerProfile.get_by_name(profile_name)
         
@@ -85,7 +97,17 @@ class SpeakerProfileCreate(BaseModel):
 
 @router.post("/speaker-profiles", response_model=SpeakerProfileResponse)
 async def create_speaker_profile(profile_data: SpeakerProfileCreate):
-    """Create a new speaker profile"""
+    """
+    Create a new speaker profile.
+
+    創建新的講者配置。
+
+    - **name**: 講者配置名稱（唯一）
+    - **description**: 配置描述
+    - **tts_provider**: 文字轉語音提供商
+    - **tts_model**: 文字轉語音模型名稱
+    - **speakers**: 講者設定陣列
+    """
     try:
         profile = SpeakerProfile(
             name=profile_data.name,
@@ -116,7 +138,18 @@ async def create_speaker_profile(profile_data: SpeakerProfileCreate):
 
 @router.put("/speaker-profiles/{profile_id}", response_model=SpeakerProfileResponse)
 async def update_speaker_profile(profile_id: str, profile_data: SpeakerProfileCreate):
-    """Update an existing speaker profile"""
+    """
+    Update an existing speaker profile.
+
+    更新現有的講者配置。
+
+    - **profile_id**: 要更新的講者配置 ID
+    - **name**: 新的配置名稱
+    - **description**: 新的配置描述
+    - **tts_provider**: 新的 TTS 提供商
+    - **tts_model**: 新的 TTS 模型
+    - **speakers**: 新的講者設定陣列
+    """
     try:
         profile = await SpeakerProfile.get(profile_id)
         
@@ -156,7 +189,13 @@ async def update_speaker_profile(profile_id: str, profile_data: SpeakerProfileCr
 
 @router.delete("/speaker-profiles/{profile_id}")
 async def delete_speaker_profile(profile_id: str):
-    """Delete a speaker profile"""
+    """
+    Delete a speaker profile.
+
+    刪除講者配置。
+
+    - **profile_id**: 要刪除的講者配置 ID
+    """
     try:
         profile = await SpeakerProfile.get(profile_id)
         
@@ -182,7 +221,13 @@ async def delete_speaker_profile(profile_id: str):
 
 @router.post("/speaker-profiles/{profile_id}/duplicate", response_model=SpeakerProfileResponse)
 async def duplicate_speaker_profile(profile_id: str):
-    """Duplicate a speaker profile"""
+    """
+    Duplicate a speaker profile.
+
+    複製講者配置。
+
+    - **profile_id**: 要複製的講者配置 ID
+    """
     try:
         original = await SpeakerProfile.get(profile_id)
         

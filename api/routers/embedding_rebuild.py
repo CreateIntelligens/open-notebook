@@ -20,12 +20,19 @@ async def start_rebuild(request: RebuildRequest):
     """
     Start a background job to rebuild embeddings.
 
+    啟動背景任務以重建向量嵌入。
+
     - **mode**: "existing" (re-embed items with embeddings) or "all" (embed everything)
+              「existing」（重新嵌入已有嵌入的項目）或「all」（嵌入所有項目）
     - **include_sources**: Include sources in rebuild (default: true)
+                          是否包含來源（預設：true）
     - **include_notes**: Include notes in rebuild (default: true)
+                        是否包含筆記（預設：true）
     - **include_insights**: Include insights in rebuild (default: true)
+                           是否包含洞察（預設：true）
 
     Returns command ID to track progress and estimated item count.
+    返回指令 ID 以追蹤進度及預估項目數量。
     """
     try:
         logger.info(f"Starting rebuild request: mode={request.mode}")
@@ -125,11 +132,19 @@ async def get_rebuild_status(command_id: str):
     """
     Get the status of a rebuild operation.
 
+    獲取重建操作的狀態。
+
     Returns:
     - **status**: queued, running, completed, failed
+                 排隊中、執行中、已完成、失敗
     - **progress**: processed count, total count, percentage
+                   已處理數量、總數量、百分比
     - **stats**: breakdown by type (sources, notes, insights, failed)
+                依類型細分（來源、筆記、洞察、失敗）
     - **timestamps**: started_at, completed_at
+                     開始時間、完成時間
+
+    - **command_id**: 重建指令的 ID
     """
     try:
         # Get command status from surreal_commands

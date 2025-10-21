@@ -10,7 +10,18 @@ router = APIRouter()
 
 @router.get("/settings", response_model=SettingsResponse)
 async def get_settings():
-    """Get all application settings."""
+    """
+    Get all application settings.
+
+    獲取所有應用程式設定。
+
+    包括：
+    - 文檔處理引擎設定
+    - URL 處理引擎設定
+    - 向量嵌入選項
+    - 自動刪除檔案設定
+    - YouTube 偏好語言
+    """
     try:
         settings: ContentSettings = await ContentSettings.get_instance()  # type: ignore[assignment]
 
@@ -28,7 +39,17 @@ async def get_settings():
 
 @router.put("/settings", response_model=SettingsResponse)
 async def update_settings(settings_update: SettingsUpdate):
-    """Update application settings."""
+    """
+    Update application settings.
+
+    更新應用程式設定。
+
+    - **default_content_processing_engine_doc**: 文檔處理引擎（auto, docling, simple）
+    - **default_content_processing_engine_url**: URL 處理引擎（auto, firecrawl, jina, simple）
+    - **default_embedding_option**: 嵌入選項（ask, always, never）
+    - **auto_delete_files**: 自動刪除檔案（yes, no）
+    - **youtube_preferred_languages**: YouTube 偏好語言列表
+    """
     try:
         settings: ContentSettings = await ContentSettings.get_instance()  # type: ignore[assignment]
 

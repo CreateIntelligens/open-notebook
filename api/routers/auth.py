@@ -14,7 +14,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def get_auth_status():
     """
     Check if authentication is enabled.
+
+    檢查是否啟用認證。
+
     Returns whether a password is required to access the API.
+    返回是否需要密碼才能訪問 API。
     """
     auth_enabled = bool(os.environ.get("OPEN_NOTEBOOK_PASSWORD"))
 

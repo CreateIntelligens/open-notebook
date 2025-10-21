@@ -91,8 +91,14 @@ class SuccessResponse(BaseModel):
 
 
 @router.get("/chat/sessions", response_model=List[ChatSessionResponse])
-async def get_sessions(notebook_id: str = Query(..., description="Notebook ID")):
-    """Get all chat sessions for a notebook."""
+async def get_sessions(notebook_id: str = Query(..., description="Notebook ID | 筆記本 ID")):
+    """
+    Get all chat sessions for a notebook.
+
+    獲取筆記本的所有對話會話。
+
+    - **notebook_id**: 筆記本的唯一識別碼
+    """
     try:
         # Get notebook to verify it exists
         notebook = await Notebook.get(notebook_id)
@@ -125,7 +131,15 @@ async def get_sessions(notebook_id: str = Query(..., description="Notebook ID"))
 
 @router.post("/chat/sessions", response_model=ChatSessionResponse)
 async def create_session(request: CreateSessionRequest):
-    """Create a new chat session."""
+    """
+    Create a new chat session.
+
+    創建新的對話會話。
+
+    - **notebook_id**: 筆記本 ID
+    - **title**: 會話標題（選填）
+    - **model_override**: 覆蓋預設的 AI 模型（選填）
+    """
     try:
         # Verify notebook exists
         notebook = await Notebook.get(request.notebook_id)
@@ -164,7 +178,13 @@ async def create_session(request: CreateSessionRequest):
     "/chat/sessions/{session_id}", response_model=ChatSessionWithMessagesResponse
 )
 async def get_session(session_id: str):
-    """Get a specific session with its messages."""
+    """
+    Get a specific session with its messages.
+
+    獲取特定對話會話及其所有訊息。
+
+    - **session_id**: 對話會話的唯一識別碼
+    """
     try:
         # Get session
         # Ensure session_id has proper table prefix
@@ -235,7 +255,15 @@ async def get_session(session_id: str):
 
 @router.put("/chat/sessions/{session_id}", response_model=ChatSessionResponse)
 async def update_session(session_id: str, request: UpdateSessionRequest):
-    """Update session title."""
+    """
+    Update session title.
+
+    更新對話會話標題。
+
+    - **session_id**: 對話會話 ID
+    - **title**: 新的會話標題（選填）
+    - **model_override**: 覆蓋的模型設定（選填）
+    """
     try:
         # Ensure session_id has proper table prefix
         full_session_id = (
@@ -288,7 +316,13 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
 
 @router.delete("/chat/sessions/{session_id}", response_model=SuccessResponse)
 async def delete_session(session_id: str):
-    """Delete a chat session."""
+    """
+    Delete a chat session.
+
+    刪除對話會話。
+
+    - **session_id**: 要刪除的對話會話 ID
+    """
     try:
         # Ensure session_id has proper table prefix
         full_session_id = (
@@ -312,7 +346,15 @@ async def delete_session(session_id: str):
 
 @router.post("/chat/execute", response_model=ExecuteChatResponse)
 async def execute_chat(request: ExecuteChatRequest):
-    """Execute a chat request and get AI response."""
+    """
+    Execute a chat request and get AI response.
+
+    執行對話請求並獲取 AI 回應。
+
+    - **session_id**: 對話會話 ID
+    - **message**: 使用者訊息內容
+    - **notebook_id**: 筆記本 ID（用於上下文）
+    """
     try:
         # Verify session exists
         # Ensure session_id has proper table prefix
@@ -387,7 +429,14 @@ async def execute_chat(request: ExecuteChatRequest):
 
 @router.post("/chat/context", response_model=BuildContextResponse)
 async def build_context(request: BuildContextRequest):
-    """Build context for a notebook based on context configuration."""
+    """
+    Build context for a notebook based on context configuration.
+
+    根據上下文配置為筆記本建立對話上下文。
+
+    - **notebook_id**: 筆記本 ID
+    - **query**: 查詢字串（用於檢索相關內容）
+    """
     try:
         # Verify notebook exists
         notebook = await Notebook.get(request.notebook_id)

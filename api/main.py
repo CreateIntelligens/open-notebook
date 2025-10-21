@@ -73,8 +73,33 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Open Notebook API",
-    description="API for Open Notebook - Research Assistant",
+    title="Open Notebook API | 開放筆記本 API",
+    description="""
+    ## Open Notebook - Research Assistant API
+
+    這是一個功能強大的研究助理系統，提供以下核心功能：
+
+    ### 核心功能 Core Features
+    - 📔 **筆記本管理** Notebook Management - 組織和管理你的研究筆記本
+    - 📄 **來源管理** Source Management - 匯入和管理各種類型的資料來源（PDF、網頁、影片等）
+    - 📝 **筆記管理** Note Management - 創建和管理研究筆記
+    - 🔍 **智能搜尋** Smart Search - 使用向量嵌入進行語義搜尋
+    - 💬 **AI 對話** AI Chat - 與你的資料進行智能對話
+    - 🎙️ **播客生成** Podcast Generation - 從研究內容生成播客
+    - 🔄 **內容轉換** Content Transformation - 各種內容轉換工具
+
+    ### API 分類 API Categories
+    - **auth** - 認證相關 Authentication
+    - **notebooks** - 筆記本管理 Notebook Management
+    - **sources** - 來源管理 Source Management
+    - **notes** - 筆記管理 Note Management
+    - **chat** - AI 對話 AI Chat
+    - **search** - 搜尋功能 Search
+    - **embedding** - 向量嵌入 Embeddings
+    - **podcasts** - 播客生成 Podcast Generation
+    - **models** - AI 模型管理 Model Management
+    - **settings** - 系統設定 Settings
+    """,
     version="0.2.2",
     lifespan=lifespan,
 )
