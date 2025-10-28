@@ -25,6 +25,7 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   // Priority 1: Check if API_URL is explicitly set
   const envApiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL
+  const runtimePort = process.env.PORT || '8899'
 
   if (envApiUrl) {
     return NextResponse.json({
@@ -45,14 +46,14 @@ export async function GET(request: NextRequest) {
 
     if (hostHeader) {
       // Use the same host:port as the incoming request
-      // Since nginx proxies everything through 8899, we just return the same URL
-      // Ensure port is included (default to 8899 if not present)
+      // Since nginx proxies everything through a single port, we just return the same URL
+      // Ensure port is included (default to runtime PORT if not present)
       let apiUrl: string
       if (hostHeader.includes(':')) {
         apiUrl = `${proto}://${hostHeader}`
       } else {
-        // No port in host header, add 8899
-        apiUrl = `${proto}://${hostHeader}:8899`
+        // No port in host header, add the runtime port
+        apiUrl = `${proto}://${hostHeader}:${runtimePort}`
       }
 
       console.log(`[runtime-config] Auto-detected API URL: ${apiUrl} (proto=${proto}, host=${hostHeader})`)
@@ -65,9 +66,9 @@ export async function GET(request: NextRequest) {
     console.error('[runtime-config] Auto-detection failed:', error)
   }
 
-  // Priority 3: Fallback to localhost:8899 (nginx port)
-  console.log('[runtime-config] Using fallback: http://localhost:8899')
+  // Priority 3: Fallback to localhost using the runtime nginx port
+  console.log(`[runtime-config] Using fallback: http://localhost:${runtimePort}`)
   return NextResponse.json({
-    apiUrl: 'http://localhost:8899',
+    apiUrl: `http://localhost:${runtimePort}`,
   })
 }

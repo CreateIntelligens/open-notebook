@@ -23,7 +23,7 @@ services:
       - surrealdb
     volumes:
       - .:/app
-      - ./nginx.conf:/etc/nginx/sites-enabled/default
+      - ./nginx.conf:/app/nginx.conf:ro
       - ./supervisord.conf:/etc/supervisor/conf.d/supervisord.conf
       - ./notebook_data:/app/data
       - ssl_certs:/app/ssl  # Docker volume for SSL certs (avoids permission issues)
