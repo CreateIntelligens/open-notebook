@@ -14,9 +14,11 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8900:8900"
+      - "${PORT}:${PORT}"
     env_file:
       - .env
+    environment:
+      - PORT=${PORT}
     depends_on:
       - surrealdb
     volumes:
