@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+import { type LucideIcon, FileText, StickyNote, MessageCircle } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { NotebookHeader } from '../components/NotebookHeader'
 import { SourcesColumn } from '../components/SourcesColumn'
@@ -11,6 +12,8 @@ import { useNotebook } from '@/lib/hooks/use-notebooks'
 import { useSources } from '@/lib/hooks/use-sources'
 import { useNotes } from '@/lib/hooks/use-notes'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { motionTokens } from '@/lib/constants/design-tokens'
+import { cn } from '@/lib/utils'
 
 export type ContextMode = 'off' | 'insights' | 'full'
 
@@ -34,6 +37,23 @@ export default function NotebookPage() {
     sources: {},
     notes: {}
   })
+
+  const [panelOpenState, setPanelOpenState] = useState<Record<PanelKey, boolean>>({
+    sources: true,
+    notes: true
+  })
+
+  const standardEase = motionTokens.easing.standard.join(', ')
+  const outEase = motionTokens.easing.out.join(', ')
+  const panelTransition = `all ${motionTokens.duration.medium}s cubic-bezier(${standardEase})`
+  const chatTransition = `all ${motionTokens.duration.medium}s cubic-bezier(${outEase})`
+
+  const togglePanel = useCallback((panel: PanelKey) => {
+    setPanelOpenState(prev => ({
+      ...prev,
+      [panel]: !prev[panel]
+    }))
+  }, [])
 
   // Initialize default selections when sources/notes load
   useEffect(() => {
@@ -106,39 +126,124 @@ export default function NotebookPage() {
         </div>
 
         <div className="flex-1 p-6 pt-6 overflow-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full min-h-0">
-            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 h-full min-h-0">
-              <div className="flex flex-col h-full min-h-0 overflow-hidden">
-                <SourcesColumn
-                  sources={sources}
-                  isLoading={sourcesLoading}
-                  notebookId={notebookId}
-                  notebookName={notebook?.name}
-                  onRefresh={refetchSources}
-                  contextSelections={contextSelections.sources}
-                  onContextModeChange={(sourceId, mode) => handleContextModeChange(sourceId, mode, 'source')}
-                />
+          <div className="flex h-full flex-col gap-6 min-h-0">
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card px-3 py-2">
+              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <MessageCircle className="h-3.5 w-3.5" />
+                顯示面板
               </div>
-              <div className="flex flex-col h-full min-h-0 overflow-hidden">
-                <NotesColumn
-                  notes={notes}
-                  isLoading={notesLoading}
-                  notebookId={notebookId}
-                  contextSelections={contextSelections.notes}
-                  onContextModeChange={(noteId, mode) => handleContextModeChange(noteId, mode, 'note')}
-                />
+              <div className="flex flex-wrap gap-2">
+                {panelDefinitions.map(panel => (
+                  <PanelToggle
+                    key={panel.key}
+                    label={panel.label}
+                    icon={panel.icon}
+                    active={panelOpenState[panel.key]}
+                    onClick={() => togglePanel(panel.key)}
+                  />
+                ))}
               </div>
             </div>
 
-            <div className="flex flex-col h-full min-h-0 overflow-hidden">
-              <ChatColumn
-                notebookId={notebookId}
-                contextSelections={contextSelections}
-              />
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full min-h-0">
+              {panelOpenState.sources && (
+                <div
+                  className={cn(
+                    'flex flex-col h-full min-h-0 overflow-hidden',
+                    'transition-all',
+                    panelOpenState.notes ? 'lg:col-span-1' : 'lg:col-span-2'
+                  )}
+                  style={{ transition: panelTransition }}
+                >
+                  <SourcesColumn
+                    sources={sources}
+                    isLoading={sourcesLoading}
+                    notebookId={notebookId}
+                    notebookName={notebook?.name}
+                    onRefresh={refetchSources}
+                    contextSelections={contextSelections.sources}
+                    onContextModeChange={(sourceId, mode) => handleContextModeChange(sourceId, mode, 'source')}
+                  />
+                </div>
+              )}
+
+              {panelOpenState.notes && (
+                <div
+                  className={cn(
+                    'flex flex-col h-full min-h-0 overflow-hidden',
+                    'transition-all',
+                    panelOpenState.sources ? 'lg:col-span-1' : 'lg:col-span-2'
+                  )}
+                  style={{ transition: panelTransition }}
+                >
+                  <NotesColumn
+                    notes={notes}
+                    isLoading={notesLoading}
+                    notebookId={notebookId}
+                    contextSelections={contextSelections.notes}
+                    onContextModeChange={(noteId, mode) => handleContextModeChange(noteId, mode, 'note')}
+                  />
+                </div>
+              )}
+
+              <div
+                className={cn(
+                  'flex flex-col h-full min-h-0 overflow-hidden',
+                  'transition-all',
+                  (!panelOpenState.sources && !panelOpenState.notes) && 'lg:col-span-4',
+                  (panelOpenState.sources && panelOpenState.notes) && 'lg:col-span-2',
+                  (panelOpenState.sources !== panelOpenState.notes) && 'lg:col-span-2'
+                )}
+                style={{ transition: chatTransition }}
+              >
+                <ChatColumn
+                  notebookId={notebookId}
+                  contextSelections={contextSelections}
+                />
+              </div>
             </div>
           </div>
         </div>
       </div>
     </AppShell>
+  )
+}
+
+type PanelKey = 'sources' | 'notes'
+
+interface PanelDefinition {
+  key: PanelKey
+  label: string
+  icon: LucideIcon
+}
+
+const panelDefinitions: PanelDefinition[] = [
+  { key: 'sources', label: 'Sources', icon: FileText },
+  { key: 'notes', label: 'Notes', icon: StickyNote }
+]
+
+interface PanelToggleProps {
+  label: string
+  icon: LucideIcon
+  active: boolean
+  onClick: () => void
+}
+
+function PanelToggle({ label, icon: Icon, active, onClick }: PanelToggleProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'group relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+        active
+          ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90'
+          : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+      )}
+    >
+      <Icon className="h-3.5 w-3.5 transition-transform duration-200 group-hover:scale-105" />
+      <span className="text-xs">{label}</span>
+    </button>
   )
 }

@@ -6,8 +6,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { Bot, User, Send, Loader2, FileText, Lightbulb, StickyNote, Clock } from 'lucide-react'
+import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Bot, User, Send, Loader2, FileText, Lightbulb, StickyNote, Clock, Settings } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import {
   SourceChatMessage,
@@ -52,6 +52,9 @@ interface ChatPanelProps {
   notebookContextStats?: NotebookContextStats
   // Notebook ID for saving notes
   notebookId?: string
+  // System prompt customization
+  customSystemPrompt?: string | null
+  onSystemPromptChange?: (prompt: string | null) => void
 }
 
 export function ChatPanel({
@@ -71,10 +74,14 @@ export function ChatPanel({
   title = 'Chat with Source',
   contextType = 'source',
   notebookContextStats,
-  notebookId
+  notebookId,
+  customSystemPrompt,
+  onSystemPromptChange
 }: ChatPanelProps) {
   const [input, setInput] = useState('')
   const [sessionManagerOpen, setSessionManagerOpen] = useState(false)
+  const [systemPromptDialogOpen, setSystemPromptDialogOpen] = useState(false)
+  const [systemPromptInput, setSystemPromptInput] = useState(customSystemPrompt || '')
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { openModal } = useModalManager()
@@ -98,10 +105,32 @@ export function ChatPanel({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Sync system prompt input with prop changes
+  useEffect(() => {
+    setSystemPromptInput(customSystemPrompt || '')
+  }, [customSystemPrompt])
+
   const handleSend = () => {
     if (input.trim() && !isStreaming) {
       onSendMessage(input.trim(), modelOverride)
       setInput('')
+    }
+  }
+
+  const handleSaveSystemPrompt = () => {
+    if (onSystemPromptChange) {
+      const trimmed = systemPromptInput.trim()
+      onSystemPromptChange(trimmed || null)
+      setSystemPromptDialogOpen(false)
+      toast.success('System prompt 已更新！新的對話將使用新設定')
+    }
+  }
+
+  const handleResetSystemPrompt = () => {
+    setSystemPromptInput('')
+    if (onSystemPromptChange) {
+      onSystemPromptChange(null)
+      toast.success('System prompt reset to default')
     }
   }
 
@@ -275,17 +304,32 @@ export function ChatPanel({
 
         {/* Input Area */}
         <div className="flex-shrink-0 p-4 space-y-3 border-t">
-          {/* Model selector */}
-          {onModelChange && (
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Model</span>
-              <ModelSelector
-                currentModel={modelOverride}
-                onModelChange={onModelChange}
-                disabled={isStreaming}
-              />
-            </div>
-          )}
+          {/* Model selector and System Prompt Settings */}
+          <div className="flex items-center justify-between gap-2">
+            {onModelChange && (
+              <>
+                <span className="text-xs text-muted-foreground">Model</span>
+                <div className="flex items-center gap-2">
+                  <ModelSelector
+                    currentModel={modelOverride}
+                    onModelChange={onModelChange}
+                    disabled={isStreaming}
+                  />
+                  {onSystemPromptChange && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSystemPromptDialogOpen(true)}
+                      disabled={isStreaming}
+                      title="自訂 AI 角色"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
 
           <div className="flex gap-2 items-end">
             <Textarea
@@ -313,6 +357,49 @@ export function ChatPanel({
         </div>
       </CardContent>
     </Card>
+
+    {/* System Prompt Customization Dialog */}
+    {onSystemPromptChange && (
+      <Dialog open={systemPromptDialogOpen} onOpenChange={setSystemPromptDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>自訂 AI 角色</DialogTitle>
+            <DialogDescription>
+              設定 AI 助手的角色和行為方式。留空將使用預設的 system prompt。
+              <br />
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Textarea
+              value={systemPromptInput}
+              onChange={(e) => setSystemPromptInput(e.target.value)}
+              placeholder="例如：你是一個專業的程式教練，擅長用淺顯易懂的方式解釋複雜的技術概念..."
+              className="min-h-[200px] resize-none"
+              disabled={isStreaming}
+            />
+            {customSystemPrompt && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Badge variant="outline" className="text-xs">
+                  已啟用自訂 prompt
+                </Badge>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={handleResetSystemPrompt}
+              disabled={isStreaming || !customSystemPrompt}
+            >
+              重設為預設
+            </Button>
+            <Button onClick={handleSaveSystemPrompt} disabled={isStreaming}>
+              儲存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
 
     </>
   )

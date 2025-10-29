@@ -424,6 +424,7 @@ class ChatSession(ObjectModel):
     table_name: ClassVar[str] = "chat_session"
     title: Optional[str] = None
     model_override: Optional[str] = None
+    custom_system_prompt: Optional[str] = None
 
     async def relate_to_notebook(self, notebook_id: str) -> Any:
         if not notebook_id:

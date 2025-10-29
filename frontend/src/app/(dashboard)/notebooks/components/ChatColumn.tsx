@@ -110,6 +110,12 @@ export function ChatColumn({ notebookId, contextSelections }: ChatColumnProps) {
       loadingSessions={chat.loadingSessions}
       notebookContextStats={contextStats}
       notebookId={notebookId}
+      customSystemPrompt={chat.currentSession?.custom_system_prompt ?? undefined}
+      onSystemPromptChange={(prompt) => {
+        if (chat.currentSessionId) {
+          chat.updateSession(chat.currentSessionId, { custom_system_prompt: prompt })
+        }
+      }}
     />
   )
 }
