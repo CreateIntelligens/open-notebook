@@ -30,7 +30,7 @@ export function SourceInsightDialog({ open, onOpenChange, insight }: SourceInsig
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="sm:max-w-3xl max-h-[90vh] overflow-hidden"
+        className="sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col"
         ariaDescription="Displays the full content and metadata for the selected insight."
       >
         <DialogHeader>
@@ -44,7 +44,7 @@ export function SourceInsightDialog({ open, onOpenChange, insight }: SourceInsig
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {isLoading ? (
             <div className="flex items-center justify-center py-10">
               <span className="text-sm text-muted-foreground">Loading insight…</span>
