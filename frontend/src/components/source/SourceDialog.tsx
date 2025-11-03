@@ -39,14 +39,14 @@ export function SourceDialog({ open, onOpenChange, sourceId }: SourceDialogProps
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
+        className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col p-0"
         ariaDescription="Shows detailed information and actions for the selected source."
       >
         {/* Accessibility title (hidden visually but read by screen readers) */}
         <DialogTitle className="sr-only">Source Details</DialogTitle>
 
         {/* Source detail content */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto min-h-0">
           <SourceDetailContent
             sourceId={sourceIdWithPrefix}
             showChatButton={true}
