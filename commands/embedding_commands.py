@@ -189,13 +189,6 @@ async def embed_single_item_command(
 @command(
     "embed_chunk",
     app="open_notebook",
-    retry={
-        "max_attempts": 5,
-        "wait_strategy": "exponential_jitter",
-        "wait_min": 1,
-        "wait_max": 30,
-        "retry_on": [RuntimeError, ConnectionError, TimeoutError],
-    },
 )
 async def embed_chunk_command(
     input_data: EmbedChunkInput,
@@ -288,7 +281,7 @@ async def embed_chunk_command(
         )
 
 
-@command("vectorize_source", app="open_notebook", retry=None)
+@command("vectorize_source", app="open_notebook")
 async def vectorize_source_command(
     input_data: VectorizeSourceInput,
 ) -> VectorizeSourceOutput:
@@ -462,7 +455,7 @@ async def collect_items_for_rebuild(
     return items
 
 
-@command("rebuild_embeddings", app="open_notebook", retry=None)
+@command("rebuild_embeddings", app="open_notebook")
 async def rebuild_embeddings_command(
     input_data: RebuildEmbeddingsInput,
 ) -> RebuildEmbeddingsOutput:
