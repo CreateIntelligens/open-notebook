@@ -9,16 +9,20 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { Card, CardContent } from '@/components/ui/card'
 import { AlertCircle } from 'lucide-react'
 import { ContextSelections } from '../[id]/page'
+import { NotebookResponse } from '@/lib/types/api'
+import { useUpdateNotebook } from '@/lib/hooks/use-notebooks'
 
 interface ChatColumnProps {
   notebookId: string
+  notebook: NotebookResponse
   contextSelections: ContextSelections
 }
 
-export function ChatColumn({ notebookId, contextSelections }: ChatColumnProps) {
+export function ChatColumn({ notebookId, notebook, contextSelections }: ChatColumnProps) {
   // Fetch sources and notes for this notebook
   const { data: sources = [], isLoading: sourcesLoading } = useSources(notebookId)
   const { data: notes = [], isLoading: notesLoading } = useNotes(notebookId)
+  const updateNotebook = useUpdateNotebook()
 
   // Initialize notebook chat hook
   const chat = useNotebookChat({
@@ -61,6 +65,8 @@ export function ChatColumn({ notebookId, contextSelections }: ChatColumnProps) {
     }
   }, [sources, notes, contextSelections, chat.tokenCount, chat.charCount])
 
+  const isChatBusy = chat.isSending || updateNotebook.isPending
+
   // Show loading state while sources/notes are being fetched
   if (sourcesLoading || notesLoading) {
     return (
@@ -92,7 +98,7 @@ export function ChatColumn({ notebookId, contextSelections }: ChatColumnProps) {
       title="Chat with Notebook"
       contextType="notebook"
       messages={chat.messages}
-      isStreaming={chat.isSending}
+      isStreaming={isChatBusy}
       contextIndicators={null}
       onSendMessage={(message, modelOverride) => chat.sendMessage(message, modelOverride)}
       modelOverride={chat.currentSession?.model_override ?? undefined}
@@ -110,11 +116,12 @@ export function ChatColumn({ notebookId, contextSelections }: ChatColumnProps) {
       loadingSessions={chat.loadingSessions}
       notebookContextStats={contextStats}
       notebookId={notebookId}
-      customSystemPrompt={chat.currentSession?.custom_system_prompt ?? undefined}
+      customSystemPrompt={notebook.custom_system_prompt ?? null}
       onSystemPromptChange={(prompt) => {
-        if (chat.currentSessionId) {
-          chat.updateSession(chat.currentSessionId, { custom_system_prompt: prompt })
-        }
+        updateNotebook.mutate({
+          id: notebook.id,
+          data: { custom_system_prompt: prompt }
+        })
       }}
     />
   )

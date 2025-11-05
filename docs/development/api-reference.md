@@ -51,7 +51,10 @@ Get all notebooks with optional filtering and ordering.
     "description": "Research on AI applications",
     "archived": false,
     "created": "2024-01-01T00:00:00Z",
-    "updated": "2024-01-01T00:00:00Z"
+    "updated": "2024-01-01T00:00:00Z",
+    "source_count": 5,
+    "note_count": 12,
+    "custom_system_prompt": "You are a professional research assistant..."
   }
 ]
 ```
@@ -69,9 +72,15 @@ Create a new notebook.
 ```json
 {
   "name": "My New Notebook",
-  "description": "Description of the notebook"
+  "description": "Description of the notebook",
+  "custom_system_prompt": "You are a helpful research assistant focused on academic writing."
 }
 ```
+
+**Fields**:
+- `name` (string, required): Notebook name
+- `description` (string, optional): Notebook description
+- `custom_system_prompt` (string, optional): Custom system prompt for AI interactions in this notebook's chat sessions
 
 **Response**: Same as GET single notebook
 
@@ -79,7 +88,7 @@ Create a new notebook.
 ```bash
 curl -X POST http://localhost:5055/api/notebooks \
   -H "Content-Type: application/json" \
-  -d '{"name": "Research Project", "description": "AI research notebook"}'
+  -d '{"name": "Research Project", "description": "AI research notebook", "custom_system_prompt": "You are a professional AI researcher."}'
 ```
 
 ### GET /api/notebooks/{notebook_id}
@@ -103,11 +112,36 @@ Update a notebook.
 {
   "name": "Updated Name",
   "description": "Updated description",
-  "archived": true
+  "archived": true,
+  "custom_system_prompt": "You are a professional mathematics teacher. Always use a teaching tone and add a practice question at the end."
 }
 ```
 
+**Fields**:
+- `name` (string, optional): Notebook name
+- `description` (string, optional): Notebook description
+- `archived` (boolean, optional): Archive status
+- `custom_system_prompt` (string | null, optional): Custom system prompt for AI interactions. Set to `null` to clear the prompt.
+
+**Note**: All chat sessions within this notebook will use the updated system prompt immediately.
+
 **Response**: Same as GET single notebook
+
+**Examples**:
+
+**Update prompt**:
+```bash
+curl -X PUT http://localhost:5055/api/notebooks/notebook:abc123 \
+  -H "Content-Type: application/json" \
+  -d '{"custom_system_prompt": "You are a helpful coding assistant."}'
+```
+
+**Clear prompt** (revert to default behavior):
+```bash
+curl -X PUT http://localhost:5055/api/notebooks/notebook:abc123 \
+  -H "Content-Type: application/json" \
+  -d '{"custom_system_prompt": null}'
+```
 
 ### DELETE /api/notebooks/{notebook_id}
 
@@ -917,6 +951,8 @@ Delete a chat session and all its messages.
 
 Execute a chat message and get AI response.
 
+**System Prompt Behavior**: The chat will automatically use the `custom_system_prompt` configured in the notebook that this session belongs to. If no custom prompt is set, the default AI behavior is used.
+
 **Request Body**:
 ```json
 {
@@ -1478,6 +1514,55 @@ curl -X GET http://localhost:5055/api/chat/sessions/$SESSION_ID
 
 # 5. List all sessions for the notebook
 curl -X GET "http://localhost:5055/api/chat/sessions?notebook_id=$NOTEBOOK_ID"
+```
+
+### Custom System Prompt Example
+
+Configure notebook-level AI behavior for all chat sessions:
+
+```bash
+# 1. Create a notebook with a custom system prompt
+NOTEBOOK_ID=$(curl -X POST http://localhost:5055/api/notebooks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Math Teaching Notebook",
+    "description": "Educational content for students",
+    "custom_system_prompt": "You are a professional mathematics teacher. Always use a teaching tone and add a practice question at the end of your response."
+  }' | jq -r '.id')
+
+# 2. Create a chat session (inherits notebook prompt)
+SESSION_ID=$(curl -X POST http://localhost:5055/api/chat/sessions \
+  -H "Content-Type: application/json" \
+  -d "{\"notebook_id\": \"$NOTEBOOK_ID\", \"title\": \"Math Lesson\"}" \
+  | jq -r '.id')
+
+# 3. Chat with the AI (will follow the teaching style)
+curl -X POST http://localhost:5055/api/chat/execute \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"session_id\": \"$SESSION_ID\",
+    \"message\": \"What is a prime number?\",
+    \"context\": {\"sources\": [], \"notes\": []}
+  }"
+
+# 4. Update the notebook's system prompt (affects all sessions)
+curl -X PUT http://localhost:5055/api/notebooks/$NOTEBOOK_ID \
+  -H "Content-Type: application/json" \
+  -d '{"custom_system_prompt": "You are a friendly tutor who uses simple language and real-world examples."}'
+
+# 5. Chat again (now uses the updated prompt)
+curl -X POST http://localhost:5055/api/chat/execute \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"session_id\": \"$SESSION_ID\",
+    \"message\": \"Explain fractions\",
+    \"context\": {\"sources\": [], \"notes\": []}
+  }"
+
+# 6. Clear the custom prompt (revert to default AI behavior)
+curl -X PUT http://localhost:5055/api/notebooks/$NOTEBOOK_ID \
+  -H "Content-Type: application/json" \
+  -d '{"custom_system_prompt": null}'
 ```
 
 ## 📡 WebSocket Support

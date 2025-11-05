@@ -22,18 +22,12 @@ class CreateSessionRequest(BaseModel):
     model_override: Optional[str] = Field(
         None, description="Optional model override for this session"
     )
-    custom_system_prompt: Optional[str] = Field(
-        None, description="Optional custom system prompt for this session"
-    )
 
 
 class UpdateSessionRequest(BaseModel):
     title: Optional[str] = Field(None, description="New session title")
     model_override: Optional[str] = Field(
         None, description="Model override for this session"
-    )
-    custom_system_prompt: Optional[str] = Field(
-        None, description="Custom system prompt for this session"
     )
 
 
@@ -55,9 +49,6 @@ class ChatSessionResponse(BaseModel):
     )
     model_override: Optional[str] = Field(
         None, description="Model override for this session"
-    )
-    custom_system_prompt: Optional[str] = Field(
-        None, description="Custom system prompt for this session"
     )
 
 
@@ -126,7 +117,6 @@ async def get_sessions(notebook_id: str = Query(..., description="Notebook ID | 
                 updated=str(session.updated),
                 message_count=0,  # TODO: Add message count if needed
                 model_override=getattr(session, "model_override", None),
-                custom_system_prompt=getattr(session, "custom_system_prompt", None),
             )
             for session in sessions
         ]
@@ -160,7 +150,6 @@ async def create_session(request: CreateSessionRequest):
         session = ChatSession(
             title=request.title or f"Chat Session {asyncio.get_event_loop().time():.0f}",
             model_override=request.model_override,
-            custom_system_prompt=request.custom_system_prompt,
         )
         await session.save()
 
@@ -175,7 +164,6 @@ async def create_session(request: CreateSessionRequest):
             updated=str(session.updated),
             message_count=0,
             model_override=session.model_override,
-            custom_system_prompt=session.custom_system_prompt,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Notebook not found")
@@ -257,7 +245,6 @@ async def get_session(session_id: str):
             message_count=len(messages),
             messages=messages,
             model_override=getattr(session, "model_override", None),
-            custom_system_prompt=getattr(session, "custom_system_prompt", None),
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -296,9 +283,6 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
         if "model_override" in update_data:
             session.model_override = update_data["model_override"]
 
-        if "custom_system_prompt" in update_data:
-            session.custom_system_prompt = update_data["custom_system_prompt"]
-
         await session.save()
 
         # Find notebook_id
@@ -322,7 +306,6 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
             updated=str(session.updated),
             message_count=0,
             model_override=session.model_override,
-            custom_system_prompt=session.custom_system_prompt,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -391,6 +374,24 @@ async def execute_chat(request: ExecuteChatRequest):
             else getattr(session, "model_override", None)
         )
 
+        # Get notebook_id from session to fetch custom_system_prompt
+        notebook_query = await repo_query(
+            "SELECT out FROM refers_to WHERE in = $session_id",
+            {"session_id": ensure_record_id(full_session_id)},
+        )
+        notebook_id = notebook_query[0]["out"] if notebook_query else None
+
+        # Get custom_system_prompt from notebook (not session)
+        custom_system_prompt = None
+        if notebook_id:
+            logger.info(f"Found notebook_id: {notebook_id}")
+            notebook = await Notebook.get(notebook_id)
+            if notebook:
+                custom_system_prompt = notebook.custom_system_prompt
+                logger.info(f"Retrieved custom_system_prompt from notebook: {custom_system_prompt}")
+        else:
+            logger.warning(f"No notebook_id found for session {session_id}")
+
         # Get current state
         current_state = chat_graph.get_state(
             config=RunnableConfig(
@@ -403,7 +404,7 @@ async def execute_chat(request: ExecuteChatRequest):
         state_values["messages"] = state_values.get("messages", [])
         state_values["context"] = request.context
         state_values["model_override"] = model_override
-        state_values["custom_system_prompt"] = getattr(session, "custom_system_prompt", None)
+        state_values["custom_system_prompt"] = custom_system_prompt
 
         # Add user message to state
         from langchain_core.messages import HumanMessage

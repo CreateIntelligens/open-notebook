@@ -50,6 +50,7 @@ async def get_notebooks(
                 updated=str(nb.get("updated", "")),
                 source_count=nb.get("source_count", 0),
                 note_count=nb.get("note_count", 0),
+                custom_system_prompt=nb.get("custom_system_prompt"),
             )
             for nb in result
         ]
@@ -74,6 +75,7 @@ async def create_notebook(notebook: NotebookCreate):
         new_notebook = Notebook(
             name=notebook.name,
             description=notebook.description,
+            custom_system_prompt=notebook.custom_system_prompt,
         )
         await new_notebook.save()
 
@@ -86,6 +88,7 @@ async def create_notebook(notebook: NotebookCreate):
             updated=str(new_notebook.updated),
             source_count=0,  # New notebook has no sources
             note_count=0,  # New notebook has no notes
+            custom_system_prompt=new_notebook.custom_system_prompt,
         )
     except InvalidInputError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -128,6 +131,7 @@ async def get_notebook(notebook_id: str):
             updated=str(nb.get("updated", "")),
             source_count=nb.get("source_count", 0),
             note_count=nb.get("note_count", 0),
+            custom_system_prompt=nb.get("custom_system_prompt"),
         )
     except HTTPException:
         raise
@@ -155,39 +159,37 @@ async def update_notebook(notebook_id: str, notebook_update: NotebookUpdate):
         if not notebook:
             raise HTTPException(status_code=404, detail="Notebook not found")
 
-        # Update only provided fields
-        if notebook_update.name is not None:
-            notebook.name = notebook_update.name
-        if notebook_update.description is not None:
-            notebook.description = notebook_update.description
-        if notebook_update.archived is not None:
-            notebook.archived = notebook_update.archived
+        # Update only provided fields, allowing explicit null values
+        update_data = notebook_update.model_dump(exclude_unset=True)
+        logger.info(f"notebook_update data: {update_data}")
 
+        if "name" in update_data:
+            notebook.name = update_data["name"]
+        if "description" in update_data:
+            notebook.description = update_data["description"]
+        if "archived" in update_data:
+            notebook.archived = update_data["archived"]
+        if "custom_system_prompt" in update_data:
+            logger.info(f"Setting custom_system_prompt to: {update_data['custom_system_prompt']}")
+            notebook.custom_system_prompt = update_data["custom_system_prompt"]
+
+        logger.info(f"Before save, notebook.custom_system_prompt: {notebook.custom_system_prompt}")
         await notebook.save()
+        logger.info(f"After save, notebook.custom_system_prompt: {notebook.custom_system_prompt}")
 
-        # Query with counts after update
-        query = """
-            SELECT *,
+        # Get counts separately to avoid issues with SELECT * and aggregation
+        count_query = """
+            SELECT
             count(<-reference.in) as source_count,
             count(<-artifact.in) as note_count
             FROM $notebook_id
         """
-        result = await repo_query(query, {"notebook_id": ensure_record_id(notebook_id)})
+        count_result = await repo_query(count_query, {"notebook_id": ensure_record_id(notebook_id)})
 
-        if result:
-            nb = result[0]
-            return NotebookResponse(
-                id=str(nb.get("id", "")),
-                name=nb.get("name", ""),
-                description=nb.get("description", ""),
-                archived=nb.get("archived", False),
-                created=str(nb.get("created", "")),
-                updated=str(nb.get("updated", "")),
-                source_count=nb.get("source_count", 0),
-                note_count=nb.get("note_count", 0),
-            )
+        source_count = count_result[0].get("source_count", 0) if count_result else 0
+        note_count = count_result[0].get("note_count", 0) if count_result else 0
 
-        # Fallback if query fails
+        # Return the updated notebook object directly
         return NotebookResponse(
             id=notebook.id or "",
             name=notebook.name,
@@ -195,8 +197,9 @@ async def update_notebook(notebook_id: str, notebook_update: NotebookUpdate):
             archived=notebook.archived or False,
             created=str(notebook.created),
             updated=str(notebook.updated),
-            source_count=0,
-            note_count=0,
+            source_count=source_count,
+            note_count=note_count,
+            custom_system_prompt=notebook.custom_system_prompt,
         )
     except HTTPException:
         raise

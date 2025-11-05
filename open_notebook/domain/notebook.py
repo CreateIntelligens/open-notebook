@@ -18,6 +18,7 @@ class Notebook(ObjectModel):
     name: str
     description: str
     archived: Optional[bool] = False
+    custom_system_prompt: Optional[str] = None
 
     @field_validator("name")
     @classmethod

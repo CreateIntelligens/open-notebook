@@ -95,6 +95,18 @@ class TestNotebookDomain:
         notebook_archived = Notebook(name="Test", description="Test", archived=True)
         assert notebook_archived.archived is True
 
+    def test_notebook_prepare_save_includes_custom_prompt(self):
+        """Ensure custom_system_prompt is preserved during save data preparation."""
+        notebook = Notebook(
+            name="Prompted Notebook",
+            description="Testing custom prompt persistence",
+            custom_system_prompt="Stay concise and helpful.",
+        )
+
+        save_data = notebook._prepare_save_data()
+
+        assert save_data.get("custom_system_prompt") == "Stay concise and helpful."
+
 
 # ============================================================================
 # TEST SUITE 4: Source Domain

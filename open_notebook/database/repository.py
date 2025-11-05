@@ -85,8 +85,13 @@ async def repo_create(table: str, data: Dict[str, Any]) -> Dict[str, Any]:
     data["created"] = datetime.now(timezone.utc)
     data["updated"] = datetime.now(timezone.utc)
     try:
+        if table == "notebook":
+            logger.info(f"repo_create for notebook: data keys={list(data.keys())}, custom_system_prompt={data.get('custom_system_prompt')}")
         async with db_connection() as connection:
-            return parse_record_ids(await connection.insert(table, data))
+            result = parse_record_ids(await connection.insert(table, data))
+            if table == "notebook":
+                logger.info(f"repo_create result: {result}")
+            return result
     except Exception as e:
         logger.exception(e)
         raise RuntimeError("Failed to create record")
@@ -134,9 +139,17 @@ async def repo_update(
         if "created" in data and isinstance(data["created"], str):
             data["created"] = datetime.fromisoformat(data["created"])
         data["updated"] = datetime.now(timezone.utc)
+
+        if table == "notebook":
+            logger.info(f"repo_update for notebook {record_id}: data keys={list(data.keys())}, custom_system_prompt={data.get('custom_system_prompt')}")
+
         query = f"UPDATE {record_id} MERGE $data;"
         # logger.debug(f"Update query: {query}")
         result = await repo_query(query, {"data": data})
+
+        if table == "notebook":
+            logger.info(f"repo_update result: {result}")
+
         # if isinstance(result, list):
         #     return [_return_data(item) for item in result]
         return parse_record_ids(result)

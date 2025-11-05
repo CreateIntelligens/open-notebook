@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 class NotebookCreate(BaseModel):
     name: str = Field(..., description="Name of the notebook | 筆記本名稱")
     description: str = Field(default="", description="Description of the notebook | 筆記本描述")
+    custom_system_prompt: Optional[str] = Field(None, description="Custom system prompt for AI interactions | AI 對話的自訂系統提示詞")
 
 
 class NotebookUpdate(BaseModel):
@@ -15,6 +16,7 @@ class NotebookUpdate(BaseModel):
     archived: Optional[bool] = Field(
         None, description="Whether the notebook is archived | 筆記本是否已封存"
     )
+    custom_system_prompt: Optional[str] = Field(None, description="Custom system prompt for AI interactions | AI 對話的自訂系統提示詞")
 
 
 class NotebookResponse(BaseModel):
@@ -26,6 +28,7 @@ class NotebookResponse(BaseModel):
     updated: str
     source_count: int
     note_count: int
+    custom_system_prompt: Optional[str] = Field(None, description="Custom system prompt for AI interactions in this notebook's chat sessions | 此筆記本聊天對話中 AI 互動的自訂系統提示詞")
 
 
 # Search models

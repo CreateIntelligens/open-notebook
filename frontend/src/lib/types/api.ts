@@ -7,6 +7,7 @@ export interface NotebookResponse {
   updated: string
   source_count: number
   note_count: number
+  custom_system_prompt?: string | null
 }
 
 export interface NoteResponse {
@@ -63,12 +64,14 @@ export interface SettingsResponse {
 export interface CreateNotebookRequest {
   name: string
   description?: string
+  custom_system_prompt?: string | null
 }
 
 export interface UpdateNotebookRequest {
   name?: string
   description?: string
   archived?: boolean
+  custom_system_prompt?: string | null
 }
 
 export interface CreateNoteRequest {
@@ -122,7 +125,6 @@ export interface BaseChatSession {
   updated: string
   message_count?: number
   model_override?: string | null
-  custom_system_prompt?: string | null
 }
 
 export interface SourceChatSession extends BaseChatSession {
@@ -192,13 +194,11 @@ export interface CreateNotebookChatSessionRequest {
   notebook_id: string
   title?: string
   model_override?: string
-  custom_system_prompt?: string
 }
 
 export interface UpdateNotebookChatSessionRequest {
   title?: string
   model_override?: string | null
-  custom_system_prompt?: string | null
 }
 
 export interface SendNotebookChatMessageRequest {
