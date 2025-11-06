@@ -165,8 +165,6 @@ class ObjectModel(BaseModel):
     def _prepare_save_data(self) -> Dict[str, Any]:
         data = self.model_dump()
         filtered_data = {key: value for key, value in data.items() if value is not None}
-        if self.__class__.__name__ == "Notebook":
-            logger.info(f"_prepare_save_data for Notebook: filtered_data keys={list(filtered_data.keys())}, custom_system_prompt={filtered_data.get('custom_system_prompt')}")
         return filtered_data
 
     async def delete(self) -> bool:

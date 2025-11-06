@@ -161,7 +161,6 @@ async def update_notebook(notebook_id: str, notebook_update: NotebookUpdate):
 
         # Update only provided fields, allowing explicit null values
         update_data = notebook_update.model_dump(exclude_unset=True)
-        logger.info(f"notebook_update data: {update_data}")
 
         if "name" in update_data:
             notebook.name = update_data["name"]
@@ -170,12 +169,9 @@ async def update_notebook(notebook_id: str, notebook_update: NotebookUpdate):
         if "archived" in update_data:
             notebook.archived = update_data["archived"]
         if "custom_system_prompt" in update_data:
-            logger.info(f"Setting custom_system_prompt to: {update_data['custom_system_prompt']}")
             notebook.custom_system_prompt = update_data["custom_system_prompt"]
 
-        logger.info(f"Before save, notebook.custom_system_prompt: {notebook.custom_system_prompt}")
         await notebook.save()
-        logger.info(f"After save, notebook.custom_system_prompt: {notebook.custom_system_prompt}")
 
         # Get counts separately to avoid issues with SELECT * and aggregation
         count_query = """

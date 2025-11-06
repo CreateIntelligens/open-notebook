@@ -384,13 +384,9 @@ async def execute_chat(request: ExecuteChatRequest):
         # Get custom_system_prompt from notebook (not session)
         custom_system_prompt = None
         if notebook_id:
-            logger.info(f"Found notebook_id: {notebook_id}")
             notebook = await Notebook.get(notebook_id)
             if notebook:
                 custom_system_prompt = notebook.custom_system_prompt
-                logger.info(f"Retrieved custom_system_prompt from notebook: {custom_system_prompt}")
-        else:
-            logger.warning(f"No notebook_id found for session {session_id}")
 
         # Get current state
         current_state = chat_graph.get_state(
@@ -468,7 +464,9 @@ async def build_context(request: BuildContextRequest):
         # Process context configuration if provided
         if request.context_config:
             # Process sources
-            for source_id, status in request.context_config.get("sources", {}).items():
+            sources_config = request.context_config.get("sources", {})
+
+            for source_id, status in sources_config.items():
                 if "not in" in status:
                     continue
 

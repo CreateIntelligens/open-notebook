@@ -361,7 +361,7 @@ export function ChatPanel({
     {/* System Prompt Customization Dialog */}
     {onSystemPromptChange && (
       <Dialog open={systemPromptDialogOpen} onOpenChange={setSystemPromptDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>自訂 AI 角色</DialogTitle>
             <DialogDescription>
@@ -374,7 +374,7 @@ export function ChatPanel({
               value={systemPromptInput}
               onChange={(e) => setSystemPromptInput(e.target.value)}
               placeholder="例如：你是一個專業的程式教練，擅長用淺顯易懂的方式解釋複雜的技術概念..."
-              className="min-h-[200px] resize-none"
+              className="min-h-[200px] max-h-[400px] resize-none overflow-y-auto"
               disabled={isStreaming}
             />
             {customSystemPrompt && (
