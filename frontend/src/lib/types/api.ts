@@ -8,6 +8,30 @@ export interface NotebookResponse {
   source_count: number
   note_count: number
   custom_system_prompt?: string | null
+  active_prompt_id?: string | null
+}
+
+export interface SystemPromptResponse {
+  id: string
+  name: string
+  content: string
+  created: string
+  updated: string
+}
+
+export interface CreatePromptRequest {
+  notebook_id: string
+  name: string
+  content: string
+}
+
+export interface UpdatePromptRequest {
+  name?: string
+  content?: string
+}
+
+export interface SetActivePromptRequest {
+  prompt_id: string | null
 }
 
 export interface NoteResponse {
@@ -209,6 +233,8 @@ export interface SendNotebookChatMessageRequest {
     notes: Array<Record<string, unknown>>
   }
   model_override?: string
+  prompt_id?: string | null
+  include_citations?: boolean
 }
 
 export interface BuildContextRequest {

@@ -1,3 +1,0 @@
--- Rollback Migration 9: Remove custom_system_prompt field from notebook
-
-REMOVE FIELD IF EXISTS custom_system_prompt ON TABLE notebook;

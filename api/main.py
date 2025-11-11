@@ -18,6 +18,7 @@ from api.routers import (
     notebooks,
     notes,
     podcasts,
+    prompts,
     search,
     settings,
     source_chat,
@@ -121,6 +122,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(config.router, prefix="/api", tags=["config"])
 app.include_router(notebooks.router, prefix="/api", tags=["notebooks"])
+app.include_router(prompts.router, prefix="/api", tags=["prompts"])
 app.include_router(search.router, prefix="/api", tags=["search"])
 app.include_router(models.router, prefix="/api", tags=["models"])
 app.include_router(transformations.router, prefix="/api", tags=["transformations"])

@@ -4,13 +4,13 @@ import { useMemo } from 'react'
 import { useNotebookChat } from '@/lib/hooks/useNotebookChat'
 import { useSources } from '@/lib/hooks/use-sources'
 import { useNotes } from '@/lib/hooks/use-notes'
+import { useActivePrompt } from '@/lib/hooks/use-prompts'
 import { ChatPanel } from '@/components/source/ChatPanel'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { Card, CardContent } from '@/components/ui/card'
 import { AlertCircle } from 'lucide-react'
 import { ContextSelections } from '../[id]/page'
 import { NotebookResponse } from '@/lib/types/api'
-import { useUpdateNotebook } from '@/lib/hooks/use-notebooks'
 
 interface ChatColumnProps {
   notebookId: string
@@ -22,7 +22,7 @@ export function ChatColumn({ notebookId, notebook, contextSelections }: ChatColu
   // Fetch sources and notes for this notebook
   const { data: sources = [], isLoading: sourcesLoading } = useSources(notebookId)
   const { data: notes = [], isLoading: notesLoading } = useNotes(notebookId)
-  const updateNotebook = useUpdateNotebook()
+  const { data: activePrompt } = useActivePrompt(notebookId)
 
   // Initialize notebook chat hook
   const chat = useNotebookChat({
@@ -65,7 +65,7 @@ export function ChatColumn({ notebookId, notebook, contextSelections }: ChatColu
     }
   }, [sources, notes, contextSelections, chat.tokenCount, chat.charCount])
 
-  const isChatBusy = chat.isSending || updateNotebook.isPending
+  const isChatBusy = chat.isSending
 
   // Show loading state while sources/notes are being fetched
   if (sourcesLoading || notesLoading) {
@@ -100,7 +100,7 @@ export function ChatColumn({ notebookId, notebook, contextSelections }: ChatColu
       messages={chat.messages}
       isStreaming={isChatBusy}
       contextIndicators={null}
-      onSendMessage={(message, modelOverride) => chat.sendMessage(message, modelOverride)}
+      onSendMessage={(message, modelOverride, promptId, includeCitations) => chat.sendMessage(message, modelOverride, promptId, includeCitations)}
       modelOverride={chat.currentSession?.model_override ?? undefined}
       onModelChange={(model) => {
         if (chat.currentSessionId) {
@@ -116,13 +116,7 @@ export function ChatColumn({ notebookId, notebook, contextSelections }: ChatColu
       loadingSessions={chat.loadingSessions}
       notebookContextStats={contextStats}
       notebookId={notebookId}
-      customSystemPrompt={notebook.custom_system_prompt ?? null}
-      onSystemPromptChange={(prompt) => {
-        updateNotebook.mutate({
-          id: notebook.id,
-          data: { custom_system_prompt: prompt }
-        })
-      }}
+      activePromptId={activePrompt?.id ?? null}
     />
   )
 }

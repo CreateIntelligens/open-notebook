@@ -1,16 +1,18 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { type LucideIcon, FileText, StickyNote, MessageCircle } from 'lucide-react'
+import { type LucideIcon, FileText, StickyNote, MessageCircle, MessageSquare } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { NotebookHeader } from '../components/NotebookHeader'
 import { SourcesColumn } from '../components/SourcesColumn'
 import { NotesColumn } from '../components/NotesColumn'
+import { PromptsColumn } from '../components/PromptsColumn'
 import { ChatColumn } from '../components/ChatColumn'
 import { useNotebook } from '@/lib/hooks/use-notebooks'
 import { useSources } from '@/lib/hooks/use-sources'
 import { useNotes } from '@/lib/hooks/use-notes'
+import { usePrompts, useActivePrompt } from '@/lib/hooks/use-prompts'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { motionTokens } from '@/lib/constants/design-tokens'
 import { cn } from '@/lib/utils'
@@ -31,6 +33,8 @@ export default function NotebookPage() {
   const { data: notebook, isLoading: notebookLoading } = useNotebook(notebookId)
   const { data: sources, isLoading: sourcesLoading, refetch: refetchSources } = useSources(notebookId)
   const { data: notes, isLoading: notesLoading } = useNotes(notebookId)
+  const { data: prompts, isLoading: promptsLoading } = usePrompts(notebookId)
+  const { data: activePrompt } = useActivePrompt(notebookId)
 
   // Context selection state
   const [contextSelections, setContextSelections] = useState<ContextSelections>({
@@ -40,7 +44,9 @@ export default function NotebookPage() {
 
   const [panelOpenState, setPanelOpenState] = useState<Record<PanelKey, boolean>>({
     sources: true,
-    notes: true
+    notes: true,
+    prompts: true,
+    chat: true,
   })
 
   const standardEase = motionTokens.easing.standard.join(', ')
@@ -87,6 +93,18 @@ export default function NotebookPage() {
       })
     }
   }, [notes])
+
+  const gridColumnsClass = useMemo(() => {
+    const openCount = panelDefinitions.reduce(
+      (count, panel) => count + (panelOpenState[panel.key] ? 1 : 0),
+      0
+    )
+
+    if (openCount <= 1) return 'lg:grid-cols-1'
+    if (openCount === 2) return 'lg:grid-cols-2'
+    if (openCount === 3) return 'lg:grid-cols-3'
+    return 'lg:grid-cols-4'
+  }, [panelOpenState])
 
   // Handler to update context selection
   const handleContextModeChange = (itemId: string, mode: ContextMode, type: 'source' | 'note') => {
@@ -145,13 +163,12 @@ export default function NotebookPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full min-h-0">
+            <div className={cn('grid grid-cols-1 gap-6 h-full min-h-0', gridColumnsClass)}>
               {panelOpenState.sources && (
                 <div
                   className={cn(
                     'flex flex-col h-full min-h-0 overflow-hidden',
-                    'transition-all',
-                    panelOpenState.notes ? 'lg:col-span-1' : 'lg:col-span-2'
+                    'transition-all lg:col-span-1'
                   )}
                   style={{ transition: panelTransition }}
                 >
@@ -171,8 +188,7 @@ export default function NotebookPage() {
                 <div
                   className={cn(
                     'flex flex-col h-full min-h-0 overflow-hidden',
-                    'transition-all',
-                    panelOpenState.sources ? 'lg:col-span-1' : 'lg:col-span-2'
+                    'transition-all lg:col-span-1'
                   )}
                   style={{ transition: panelTransition }}
                 >
@@ -186,22 +202,39 @@ export default function NotebookPage() {
                 </div>
               )}
 
-              <div
-                className={cn(
-                  'flex flex-col h-full min-h-0 overflow-hidden',
-                  'transition-all',
-                  (!panelOpenState.sources && !panelOpenState.notes) && 'lg:col-span-4',
-                  (panelOpenState.sources && panelOpenState.notes) && 'lg:col-span-2',
-                  (panelOpenState.sources !== panelOpenState.notes) && 'lg:col-span-2'
-                )}
-                style={{ transition: chatTransition }}
-              >
-                <ChatColumn
-                  notebookId={notebookId}
-                  notebook={notebook}
-                  contextSelections={contextSelections}
-                />
-              </div>
+              {panelOpenState.prompts && (
+                <div
+                  className={cn(
+                    'flex flex-col h-full min-h-0 overflow-hidden',
+                    'transition-all lg:col-span-1'
+                  )}
+                  style={{ transition: panelTransition }}
+                >
+                  <PromptsColumn
+                    prompts={prompts}
+                    activePromptId={activePrompt?.id}
+                    isLoading={promptsLoading}
+                    notebookId={notebookId}
+                  />
+                </div>
+              )}
+
+              {panelOpenState.chat && (
+                <div
+                  className={cn(
+                    'flex flex-col h-full min-h-0 overflow-hidden',
+                    'transition-all',
+                    'lg:col-span-1'
+                  )}
+                  style={{ transition: chatTransition }}
+                >
+                  <ChatColumn
+                    notebookId={notebookId}
+                    notebook={notebook}
+                    contextSelections={contextSelections}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -210,7 +243,7 @@ export default function NotebookPage() {
   )
 }
 
-type PanelKey = 'sources' | 'notes'
+type PanelKey = 'sources' | 'notes' | 'prompts' | 'chat'
 
 interface PanelDefinition {
   key: PanelKey
@@ -220,7 +253,9 @@ interface PanelDefinition {
 
 const panelDefinitions: PanelDefinition[] = [
   { key: 'sources', label: 'Sources', icon: FileText },
-  { key: 'notes', label: 'Notes', icon: StickyNote }
+  { key: 'notes', label: 'Notes', icon: StickyNote },
+  { key: 'prompts', label: 'Prompts', icon: MessageSquare },
+  { key: 'chat', label: 'Chat', icon: MessageCircle },
 ]
 
 interface PanelToggleProps {

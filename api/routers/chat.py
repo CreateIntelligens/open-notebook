@@ -67,6 +67,12 @@ class ExecuteChatRequest(BaseModel):
     model_override: Optional[str] = Field(
         None, description="Optional model override for this message"
     )
+    prompt_id: Optional[str] = Field(
+        None, description="Optional system prompt ID to use for this message"
+    )
+    include_citations: bool = Field(
+        True, description="Whether to include document citations in AI responses"
+    )
 
 
 class ExecuteChatResponse(BaseModel):
@@ -382,11 +388,37 @@ async def execute_chat(request: ExecuteChatRequest):
         notebook_id = notebook_query[0]["out"] if notebook_query else None
 
         # Get custom_system_prompt from notebook (not session)
+        # Priority: request.prompt_id > active_prompt_id > custom_system_prompt
         custom_system_prompt = None
         if notebook_id:
             notebook = await Notebook.get(notebook_id)
             if notebook:
-                custom_system_prompt = notebook.custom_system_prompt
+                logger.info(f"Notebook {notebook_id} - request.prompt_id: {request.prompt_id}, active_prompt_id: {notebook.active_prompt_id}")
+
+                # First priority: prompt_id from request (user's explicit choice)
+                if request.prompt_id:
+                    from open_notebook.domain.notebook import SystemPrompt
+                    try:
+                        specified_prompt = await SystemPrompt.get(request.prompt_id)
+                        custom_system_prompt = specified_prompt.content
+                        logger.info(f"Using specified prompt from request: {specified_prompt.name} - {custom_system_prompt[:50]}...")
+                    except Exception as e:
+                        logger.warning(f"Failed to get specified prompt {request.prompt_id}: {e}")
+
+                # Second priority: active prompt from notebook
+                if not custom_system_prompt and notebook.active_prompt_id:
+                    active_prompt = await notebook.get_active_prompt()
+                    if active_prompt:
+                        custom_system_prompt = active_prompt.content
+                        logger.info(f"Using active prompt: {active_prompt.name} - {custom_system_prompt[:50]}...")
+
+                # Third priority: custom_system_prompt field (legacy)
+                if not custom_system_prompt and notebook.custom_system_prompt:
+                    custom_system_prompt = notebook.custom_system_prompt
+                    logger.info(f"Using notebook custom_system_prompt: {custom_system_prompt[:50]}...")
+
+                if not custom_system_prompt:
+                    logger.info("No system prompt set (all sources are empty)")
 
         # Get current state
         current_state = chat_graph.get_state(
@@ -401,6 +433,17 @@ async def execute_chat(request: ExecuteChatRequest):
         state_values["context"] = request.context
         state_values["model_override"] = model_override
         state_values["custom_system_prompt"] = custom_system_prompt
+        state_values["include_citations"] = request.include_citations
+
+        # Debug: Log context info
+        sources_count = len(request.context.get("sources", []))
+        notes_count = len(request.context.get("notes", []))
+        logger.info(f"Chat context - sources: {sources_count}, notes: {notes_count}")
+        logger.info(f"Include citations: {request.include_citations}")
+        if sources_count > 0:
+            logger.info(f"First source: {request.context['sources'][0].get('title', 'No title')[:50]}")
+        if notes_count > 0:
+            logger.info(f"First note: {str(request.context['notes'][0])[:100]}")
 
         # Add user message to state
         from langchain_core.messages import HumanMessage

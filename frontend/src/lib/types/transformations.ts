@@ -37,6 +37,20 @@ export interface ExecuteTransformationResponse {
   model_id: string
 }
 
-export interface DefaultPrompt {
+export interface PromptPreset {
+  prompt_id: string
+  name: string
   transformation_instructions: string
+  created: string
+  updated: string
+}
+
+export interface CreatePromptPresetRequest {
+  name: string
+  transformation_instructions: string
+}
+
+export interface UpdatePromptPresetRequest {
+  name?: string
+  transformation_instructions?: string
 }

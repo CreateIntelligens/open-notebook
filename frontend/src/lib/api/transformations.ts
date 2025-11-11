@@ -5,7 +5,9 @@ import {
   UpdateTransformationRequest,
   ExecuteTransformationRequest,
   ExecuteTransformationResponse,
-  DefaultPrompt
+  PromptPreset,
+  CreatePromptPresetRequest,
+  UpdatePromptPresetRequest
 } from '@/lib/types/transformations'
 
 export const transformationsApi = {
@@ -38,13 +40,22 @@ export const transformationsApi = {
     return response.data
   },
 
-  getDefaultPrompt: async () => {
-    const response = await apiClient.get<DefaultPrompt>('/transformations/default-prompt')
+  listPromptPresets: async () => {
+    const response = await apiClient.get<PromptPreset[]>('/transformations/prompts')
     return response.data
   },
 
-  updateDefaultPrompt: async (prompt: { transformation_instructions: string }) => {
-    const response = await apiClient.put<DefaultPrompt>('/transformations/default-prompt', prompt)
+  createPromptPreset: async (data: CreatePromptPresetRequest) => {
+    const response = await apiClient.post<PromptPreset>('/transformations/prompts', data)
     return response.data
+  },
+
+  updatePromptPreset: async (promptId: string, data: UpdatePromptPresetRequest) => {
+    const response = await apiClient.put<PromptPreset>(`/transformations/prompts/${promptId}`, data)
+    return response.data
+  },
+
+  deletePromptPreset: async (promptId: string) => {
+    await apiClient.delete(`/transformations/prompts/${promptId}`)
   }
 }

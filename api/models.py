@@ -29,6 +29,7 @@ class NotebookResponse(BaseModel):
     source_count: int
     note_count: int
     custom_system_prompt: Optional[str] = Field(None, description="Custom system prompt for AI interactions in this notebook's chat sessions | 此筆記本聊天對話中 AI 互動的自訂系統提示詞")
+    active_prompt_id: Optional[str] = Field(None, description="ID of the active system prompt | 啟用的系統提示詞 ID")
 
 
 # Search models

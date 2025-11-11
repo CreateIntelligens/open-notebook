@@ -1,0 +1,9 @@
+-- Rollback Migration 100: Remove System Prompt Management
+
+-- Remove tables and edges
+REMOVE TABLE IF EXISTS prompts_for;
+REMOVE TABLE IF EXISTS system_prompt;
+
+-- Remove fields from notebook
+REMOVE FIELD IF EXISTS active_prompt_id ON TABLE notebook;
+REMOVE FIELD IF EXISTS custom_system_prompt ON TABLE notebook;

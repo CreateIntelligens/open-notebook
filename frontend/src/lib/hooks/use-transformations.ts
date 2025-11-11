@@ -4,14 +4,17 @@ import { useToast } from '@/lib/hooks/use-toast'
 import {
   CreateTransformationRequest,
   UpdateTransformationRequest,
-  ExecuteTransformationRequest
+  ExecuteTransformationRequest,
+  CreatePromptPresetRequest,
+  UpdatePromptPresetRequest,
 } from '@/lib/types/transformations'
 
 // Add to QUERY_KEYS in query-client.ts
 export const TRANSFORMATION_QUERY_KEYS = {
   transformations: ['transformations'] as const,
   transformation: (id: string) => ['transformations', id] as const,
-  defaultPrompt: ['transformations', 'default-prompt'] as const,
+  promptPresets: ['transformations', 'prompt-presets'] as const,
+  promptPreset: (id: string) => ['transformations', 'prompt-presets', id] as const,
 }
 
 export function useTransformations() {
@@ -116,30 +119,83 @@ export function useExecuteTransformation() {
   })
 }
 
-export function useDefaultPrompt() {
+export function usePromptPresets() {
   return useQuery({
-    queryKey: TRANSFORMATION_QUERY_KEYS.defaultPrompt,
-    queryFn: () => transformationsApi.getDefaultPrompt(),
+    queryKey: TRANSFORMATION_QUERY_KEYS.promptPresets,
+    queryFn: () => transformationsApi.listPromptPresets(),
   })
 }
 
-export function useUpdateDefaultPrompt() {
+export function useCreatePromptPreset() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
 
   return useMutation({
-    mutationFn: (prompt: { transformation_instructions: string }) => transformationsApi.updateDefaultPrompt(prompt),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRANSFORMATION_QUERY_KEYS.defaultPrompt })
+    mutationFn: (data: CreatePromptPresetRequest) => transformationsApi.createPromptPreset(data),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: TRANSFORMATION_QUERY_KEYS.promptPresets })
       toast({
         title: 'Success',
-        description: 'Default prompt saved successfully',
+        description: `Prompt '${data.name}' created successfully`,
       })
     },
     onError: () => {
       toast({
         title: 'Error',
-        description: 'Failed to update default prompt',
+        description: 'Failed to create prompt',
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useUpdatePromptPreset() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+
+  return useMutation({
+    mutationFn: ({
+      promptId,
+      data,
+    }: {
+      promptId: string
+      data: UpdatePromptPresetRequest
+    }) => transformationsApi.updatePromptPreset(promptId, data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: TRANSFORMATION_QUERY_KEYS.promptPresets })
+      queryClient.invalidateQueries({ queryKey: TRANSFORMATION_QUERY_KEYS.promptPreset(variables.promptId) })
+      toast({
+        title: 'Success',
+        description: 'Prompt updated successfully',
+      })
+    },
+    onError: () => {
+      toast({
+        title: 'Error',
+        description: 'Failed to update prompt',
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useDeletePromptPreset() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+
+  return useMutation({
+    mutationFn: (promptId: string) => transformationsApi.deletePromptPreset(promptId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TRANSFORMATION_QUERY_KEYS.promptPresets })
+      toast({
+        title: 'Success',
+        description: 'Prompt deleted successfully',
+      })
+    },
+    onError: () => {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete prompt',
         variant: 'destructive',
       })
     },

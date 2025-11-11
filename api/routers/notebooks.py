@@ -51,6 +51,7 @@ async def get_notebooks(
                 source_count=nb.get("source_count", 0),
                 note_count=nb.get("note_count", 0),
                 custom_system_prompt=nb.get("custom_system_prompt"),
+                active_prompt_id=nb.get("active_prompt_id"),
             )
             for nb in result
         ]
@@ -132,6 +133,7 @@ async def get_notebook(notebook_id: str):
             source_count=nb.get("source_count", 0),
             note_count=nb.get("note_count", 0),
             custom_system_prompt=nb.get("custom_system_prompt"),
+            active_prompt_id=nb.get("active_prompt_id"),
         )
     except HTTPException:
         raise

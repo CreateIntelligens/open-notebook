@@ -951,7 +951,7 @@ Delete a chat session and all its messages.
 
 Execute a chat message and get AI response.
 
-**System Prompt Behavior**: The chat will automatically use the `custom_system_prompt` configured in the notebook that this session belongs to. If no custom prompt is set, the default AI behavior is used.
+**System Prompt Behavior**: The chat will automatically use the active system prompt configured in the notebook that this session belongs to. If no active prompt is set, the default AI behavior is used.
 
 **Request Body**:
 ```json
@@ -973,9 +973,22 @@ Execute a chat message and get AI response.
         "content": "My notes on ML..."
       }
     ]
-  }
+  },
+  "model_override": "claude-3-5-sonnet-20241022",
+  "prompt_id": "prompt:uuid",
+  "include_citations": true
 }
 ```
+
+**Request Parameters**:
+- `session_id` (string, required): Chat session ID
+- `message` (string, required): User message to send
+- `context` (object, required): Context data with sources and notes
+  - `sources` (array): Source documents with their content
+  - `notes` (array): Note documents with their content
+- `model_override` (string, optional): Override the model for this message
+- `prompt_id` (string, optional): Use a specific system prompt for this message (overrides the notebook's active prompt)
+- `include_citations` (boolean, optional, default: true): Whether to include document citations in AI responses. When `true`, the AI will add references like `[source:xxx]` to cite documents. When `false`, the AI will respond without citation markers.
 
 **Response**:
 ```json
@@ -1059,6 +1072,249 @@ Build context for chat based on notebook content and configuration.
   "char_count": 5000
 }
 ```
+
+## 💭 Prompts API
+
+Manage system prompts for notebooks. System prompts allow you to customize AI behavior for all chat sessions within a notebook.
+
+### GET /api/notebooks/{notebook_id}/prompts
+
+Get all system prompts for a notebook.
+
+**Path Parameters**:
+- `notebook_id` (string): Notebook ID
+
+**Response**:
+```json
+[
+  {
+    "id": "system_prompt:uuid",
+    "name": "數學老師",
+    "content": "你是一個專業的數學老師，每次回答都要用教學的口吻，並在結尾加上一個相關的練習題。",
+    "created": "2024-01-01T00:00:00Z",
+    "updated": "2024-01-01T00:00:00Z"
+  }
+]
+```
+
+**Example**:
+```bash
+curl -X GET "http://localhost:5055/api/notebooks/notebook:abc123/prompts"
+```
+
+### POST /api/notebooks/{notebook_id}/prompts
+
+Create a new system prompt for a notebook.
+
+**Path Parameters**:
+- `notebook_id` (string): Notebook ID
+
+**Request Body**:
+```json
+{
+  "notebook_id": "notebook:uuid",
+  "name": "程式助手",
+  "content": "你是一個專業的程式開發助手，擅長解釋程式碼和提供最佳實踐建議。"
+}
+```
+
+**Fields**:
+- `notebook_id` (string, required): Notebook ID
+- `name` (string, required): Prompt name
+- `content` (string, required): Prompt content
+
+**Response**: Same as GET single prompt
+
+**Example**:
+```bash
+curl -X POST http://localhost:5055/api/notebooks/notebook:abc123/prompts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notebook_id": "notebook:abc123",
+    "name": "Research Assistant",
+    "content": "You are a professional research assistant focused on academic writing."
+  }'
+```
+
+### GET /api/prompts/{prompt_id}
+
+Get a specific system prompt by ID.
+
+**Path Parameters**:
+- `prompt_id` (string): Prompt ID
+
+**Response**: Same as array item in GET all prompts
+
+### PUT /api/prompts/{prompt_id}
+
+Update a system prompt.
+
+**Path Parameters**:
+- `prompt_id` (string): Prompt ID
+
+**Request Body** (all fields optional):
+```json
+{
+  "name": "Updated Name",
+  "content": "Updated content..."
+}
+```
+
+**Response**: Same as GET single prompt
+
+**Example**:
+```bash
+curl -X PUT http://localhost:5055/api/prompts/system_prompt:abc123 \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Senior Research Assistant"}'
+```
+
+### DELETE /api/prompts/{prompt_id}
+
+Delete a system prompt.
+
+**Path Parameters**:
+- `prompt_id` (string): Prompt ID
+
+**Response**:
+```json
+{
+  "message": "Prompt deleted successfully"
+}
+```
+
+### GET /api/notebooks/{notebook_id}/active-prompt
+
+Get the currently active system prompt for a notebook.
+
+**Path Parameters**:
+- `notebook_id` (string): Notebook ID
+
+**Response**:
+```json
+{
+  "id": "system_prompt:uuid",
+  "name": "數學老師",
+  "content": "你是一個專業的數學老師...",
+  "created": "2024-01-01T00:00:00Z",
+  "updated": "2024-01-01T00:00:00Z"
+}
+```
+
+**Note**: Returns `null` if no active prompt is set.
+
+**Example**:
+```bash
+curl -X GET "http://localhost:5055/api/notebooks/notebook:abc123/active-prompt"
+```
+
+### PUT /api/notebooks/{notebook_id}/active-prompt
+
+Set the active system prompt for a notebook. All chat sessions in this notebook will use the active prompt.
+
+**Path Parameters**:
+- `notebook_id` (string): Notebook ID
+
+**Request Body**:
+```json
+{
+  "prompt_id": "system_prompt:uuid"
+}
+```
+
+**Fields**:
+- `prompt_id` (string | null, required): Prompt ID to activate, or `null` to deactivate
+
+**Response**:
+```json
+{
+  "message": "Active prompt updated successfully",
+  "active_prompt_id": "system_prompt:uuid"
+}
+```
+
+**Examples**:
+
+**Activate a prompt**:
+```bash
+curl -X PUT http://localhost:5055/api/notebooks/notebook:abc123/active-prompt \
+  -H "Content-Type: application/json" \
+  -d '{"prompt_id": "system_prompt:xyz789"}'
+```
+
+**Deactivate (use default behavior)**:
+```bash
+curl -X PUT http://localhost:5055/api/notebooks/notebook:abc123/active-prompt \
+  -H "Content-Type: application/json" \
+  -d '{"prompt_id": null}'
+```
+
+### Complete Prompts Workflow Example
+
+```bash
+# 1. Create a notebook
+NOTEBOOK_ID=$(curl -X POST http://localhost:5055/api/notebooks \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Learning Notebook"}' | jq -r '.id')
+
+# 2. Create multiple prompts
+MATH_PROMPT=$(curl -X POST http://localhost:5055/api/notebooks/$NOTEBOOK_ID/prompts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notebook_id": "'$NOTEBOOK_ID'",
+    "name": "數學老師",
+    "content": "你是一個專業的數學老師，每次回答都要用教學的口吻。"
+  }' | jq -r '.id')
+
+CODE_PROMPT=$(curl -X POST http://localhost:5055/api/notebooks/$NOTEBOOK_ID/prompts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notebook_id": "'$NOTEBOOK_ID'",
+    "name": "程式助手",
+    "content": "你是一個專業的程式開發助手。"
+  }' | jq -r '.id')
+
+# 3. List all prompts
+curl -X GET "http://localhost:5055/api/notebooks/$NOTEBOOK_ID/prompts"
+
+# 4. Set math prompt as active
+curl -X PUT http://localhost:5055/api/notebooks/$NOTEBOOK_ID/active-prompt \
+  -H "Content-Type: application/json" \
+  -d "{\"prompt_id\": \"$MATH_PROMPT\"}"
+
+# 5. Create chat session (will use math teacher prompt)
+SESSION_ID=$(curl -X POST http://localhost:5055/api/chat/sessions \
+  -H "Content-Type: application/json" \
+  -d "{\"notebook_id\": \"$NOTEBOOK_ID\"}" | jq -r '.id')
+
+# 6. Chat with math teacher style
+curl -X POST http://localhost:5055/api/chat/execute \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"session_id\": \"$SESSION_ID\",
+    \"message\": \"解釋質數\",
+    \"context\": {\"sources\": [], \"notes\": []}
+  }"
+
+# 7. Switch to code assistant prompt
+curl -X PUT http://localhost:5055/api/notebooks/$NOTEBOOK_ID/active-prompt \
+  -H "Content-Type: application/json" \
+  -d "{\"prompt_id\": \"$CODE_PROMPT\"}"
+
+# 8. Chat again (now uses code assistant style)
+curl -X POST http://localhost:5055/api/chat/execute \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"session_id\": \"$SESSION_ID\",
+    \"message\": \"解釋 async/await\",
+    \"context\": {\"sources\": [], \"notes\": []}
+  }"
+```
+
+**Priority Order**:
+1. `active_prompt_id` (if set) - highest priority
+2. `custom_system_prompt` (if set) - fallback for backward compatibility
+3. Default AI behavior - if neither is set
 
 ## 📐 Context API
 

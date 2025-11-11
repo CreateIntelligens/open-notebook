@@ -1,0 +1,22 @@
+-- Migration 100: System Prompt Management
+-- Adds custom_system_prompt field (from previous migration 9)
+-- Creates SystemPrompt table for multiple prompts per notebook
+
+-- Add custom_system_prompt field to notebook (from migration 9)
+DEFINE FIELD custom_system_prompt ON TABLE notebook TYPE option<string>;
+
+-- Create system_prompt table
+DEFINE TABLE system_prompt SCHEMAFULL;
+DEFINE FIELD name ON TABLE system_prompt TYPE string;
+DEFINE FIELD content ON TABLE system_prompt TYPE string;
+DEFINE FIELD created ON TABLE system_prompt TYPE datetime VALUE $before OR time::now() DEFAULT time::now();
+DEFINE FIELD updated ON TABLE system_prompt TYPE datetime VALUE time::now() DEFAULT time::now();
+
+-- Create prompts_for edge (Notebook -> SystemPrompt)
+DEFINE TABLE prompts_for SCHEMAFULL TYPE RELATION IN notebook OUT system_prompt;
+DEFINE FIELD in ON TABLE prompts_for TYPE record<notebook>;
+DEFINE FIELD out ON TABLE prompts_for TYPE record<system_prompt>;
+DEFINE FIELD created ON TABLE prompts_for TYPE datetime VALUE $before OR time::now() DEFAULT time::now();
+
+-- Add active_prompt_id field to notebook
+DEFINE FIELD active_prompt_id ON TABLE notebook TYPE option<string>;

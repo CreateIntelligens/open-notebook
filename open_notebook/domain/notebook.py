@@ -13,12 +13,44 @@ from open_notebook.exceptions import DatabaseOperationError, InvalidInputError
 from open_notebook.utils import split_text
 
 
+class SystemPrompt(ObjectModel):
+    """System prompt that can be used in notebooks for chat sessions."""
+    table_name: ClassVar[str] = "system_prompt"
+    name: str
+    content: str
+
+    @field_validator("name")
+    @classmethod
+    def name_must_not_be_empty(cls, v):
+        if not v.strip():
+            raise InvalidInputError("Prompt name cannot be empty")
+        return v
+
+    @field_validator("content")
+    @classmethod
+    def content_must_not_be_empty(cls, v):
+        if not v.strip():
+            raise InvalidInputError("Prompt content cannot be empty")
+        return v
+
+    async def relate_to_notebook(self, notebook_id: str) -> None:
+        """Create prompts_for relationship between this prompt and a notebook."""
+        try:
+            await repo_query(
+                f"RELATE {ensure_record_id(notebook_id)}->prompts_for->{ensure_record_id(self.id)}",
+            )
+        except Exception as e:
+            logger.error(f"Error creating prompt relationship: {str(e)}")
+            raise DatabaseOperationError(e)
+
+
 class Notebook(ObjectModel):
     table_name: ClassVar[str] = "notebook"
     name: str
     description: str
     archived: Optional[bool] = False
     custom_system_prompt: Optional[str] = None
+    active_prompt_id: Optional[str] = None
 
     @field_validator("name")
     @classmethod
@@ -85,6 +117,40 @@ class Notebook(ObjectModel):
             )
             logger.exception(e)
             raise DatabaseOperationError(e)
+
+    async def get_prompts(self) -> List["SystemPrompt"]:
+        """Get all system prompts associated with this notebook."""
+        try:
+            prompts = await repo_query(
+                """
+                select * from (
+                    select out as prompt from prompts_for where in=$id
+                    fetch prompt
+                ) order by prompt.updated desc
+                """,
+                {"id": ensure_record_id(self.id)},
+            )
+            return [SystemPrompt(**p["prompt"]) for p in prompts] if prompts else []
+        except Exception as e:
+            logger.error(f"Error fetching prompts for notebook {self.id}: {str(e)}")
+            logger.exception(e)
+            raise DatabaseOperationError(e)
+
+    async def get_active_prompt(self) -> Optional["SystemPrompt"]:
+        """Get the active system prompt for this notebook."""
+        if not self.active_prompt_id:
+            return None
+        try:
+            prompt = await SystemPrompt.get(self.active_prompt_id)
+            return prompt
+        except Exception as e:
+            logger.error(f"Error fetching active prompt for notebook {self.id}: {str(e)}")
+            return None
+
+    async def set_active_prompt(self, prompt_id: Optional[str]) -> None:
+        """Set the active system prompt for this notebook."""
+        self.active_prompt_id = prompt_id
+        await self.save()
 
 
 class Asset(BaseModel):
