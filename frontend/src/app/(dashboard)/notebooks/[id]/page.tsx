@@ -230,7 +230,6 @@ export default function NotebookPage() {
                 >
                   <ChatColumn
                     notebookId={notebookId}
-                    notebook={notebook}
                     contextSelections={contextSelections}
                   />
                 </div>

@@ -10,15 +10,13 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { Card, CardContent } from '@/components/ui/card'
 import { AlertCircle } from 'lucide-react'
 import { ContextSelections } from '../[id]/page'
-import { NotebookResponse } from '@/lib/types/api'
 
 interface ChatColumnProps {
   notebookId: string
-  notebook: NotebookResponse
   contextSelections: ContextSelections
 }
 
-export function ChatColumn({ notebookId, notebook, contextSelections }: ChatColumnProps) {
+export function ChatColumn({ notebookId, contextSelections }: ChatColumnProps) {
   // Fetch sources and notes for this notebook
   const { data: sources = [], isLoading: sourcesLoading } = useSources(notebookId)
   const { data: notes = [], isLoading: notesLoading } = useNotes(notebookId)

@@ -322,7 +322,7 @@ export function DefaultPromptEditor() {
                     setPromptBody(event.target.value)
                   }}
                   placeholder="Detail the tone, structure, and constraints you expect from the model..."
-                  className="min-h-[220px] font-mono text-sm"
+                  className="min-h-[220px] max-h-[60vh] overflow-y-auto font-mono text-sm"
                   disabled={!canEditActivePrompt}
                 />
                 <p className="text-xs text-muted-foreground">

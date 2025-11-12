@@ -79,14 +79,22 @@ export function ChatPanel({
   const [input, setInput] = useState('')
   const [sessionManagerOpen, setSessionManagerOpen] = useState(false)
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(activePromptId ?? null)
-  const [includeCitations, setIncludeCitations] = useState(true)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { openModal } = useModalManager()
 
-  // Update selectedPromptId when activePromptId changes
+  // Persist citations state - don't reset when activePromptId changes
+  const [includeCitations, setIncludeCitations] = useState(true)
+
+  // Debug: log when includeCitations changes
+  useEffect(() => {
+    console.log('Citations checkbox state:', includeCitations)
+  }, [includeCitations])
+
+  // Update selectedPromptId when activePromptId changes (but don't reset other states)
   useEffect(() => {
     setSelectedPromptId(activePromptId ?? null)
+    // Explicitly NOT resetting includeCitations here
   }, [activePromptId])
 
   const handleReferenceClick = (type: string, id: string) => {
@@ -110,6 +118,7 @@ export function ChatPanel({
 
   const handleSend = () => {
     if (input.trim() && !isStreaming) {
+      console.log('Sending message with includeCitations:', includeCitations)
       onSendMessage(input.trim(), modelOverride, selectedPromptId, includeCitations)
       setInput('')
     }

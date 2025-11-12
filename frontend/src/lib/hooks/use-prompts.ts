@@ -91,8 +91,9 @@ export function useDeletePrompt() {
   const { toast } = useToast()
 
   return useMutation({
-    mutationFn: ({ id, notebookId }: { id: string; notebookId: string }) => promptsApi.delete(id),
-    onSuccess: (_, { notebookId }) => {
+    mutationFn: ({ id }: { id: string; notebookId: string }) => promptsApi.delete(id),
+    onSuccess: (_, variables) => {
+      const { notebookId } = variables
       // Only invalidate prompts for this specific notebook
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.prompts(notebookId) })
       toast({

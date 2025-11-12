@@ -152,7 +152,7 @@ export function PromptEditorDialog({
                     <Textarea
                       id="content"
                       placeholder="You are a helpful assistant that..."
-                      className="min-h-[300px] resize-none"
+                      className="min-h-[300px] max-h-[60vh] overflow-y-auto resize-none"
                       {...field}
                     />
                   )}
