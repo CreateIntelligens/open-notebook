@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -211,13 +212,17 @@ async def get_session(session_id: str):
         # Extract messages from state
         messages: list[ChatMessage] = []
         if thread_state and thread_state.values and "messages" in thread_state.values:
+            # Get current time in UTC+8
+            utc_plus_8 = timezone(timedelta(hours=8))
+            current_time = datetime.now(utc_plus_8).isoformat()
+
             for msg in thread_state.values["messages"]:
                 messages.append(
                     ChatMessage(
                         id=getattr(msg, "id", f"msg_{len(messages)}"),
                         type=msg.type if hasattr(msg, "type") else "unknown",
                         content=msg.content if hasattr(msg, "content") else str(msg),
-                        timestamp=None,  # LangChain messages don't have timestamps by default
+                        timestamp=current_time,
                     )
                 )
 
@@ -467,13 +472,17 @@ async def execute_chat(request: ExecuteChatRequest):
 
         # Convert messages to response format
         messages: list[ChatMessage] = []
+        # Get current time in UTC+8
+        utc_plus_8 = timezone(timedelta(hours=8))
+        current_time = datetime.now(utc_plus_8).isoformat()
+
         for msg in result.get("messages", []):
             messages.append(
                 ChatMessage(
                     id=getattr(msg, "id", f"msg_{len(messages)}"),
                     type=msg.type if hasattr(msg, "type") else "unknown",
                     content=msg.content if hasattr(msg, "content") else str(msg),
-                    timestamp=None,
+                    timestamp=current_time,
                 )
             )
 
