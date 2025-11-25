@@ -43,6 +43,15 @@ async def lifespan(app: FastAPI):
     Lifespan event handler for the FastAPI application.
     Runs database migrations automatically on startup.
     """
+    # Configure chat log rotation
+    logger.add(
+        "logs/chat_{time:YYYY-MM-DD}.log",
+        rotation="00:00",                    # 每天午夜切換
+        retention="30 days",                 # 保留 30 天後直接刪除
+        filter=lambda record: "[CHAT]" in record["message"],  # 只記錄 CHAT log
+        format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {message}",
+    )
+
     # Startup: Run database migrations
     logger.info("Starting API initialization...")
 

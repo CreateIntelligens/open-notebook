@@ -1,4 +1,5 @@
 import asyncio
+import time
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
@@ -367,7 +368,11 @@ async def execute_chat(request: ExecuteChatRequest):
     - **notebook_id**: 筆記本 ID（用於上下文）
     """
     try:
-        # Verify session exists
+        # Start total timing
+        total_start = time.time()
+
+        # Step 1: Get session
+        step_start = time.time()
         # Ensure session_id has proper table prefix
         full_session_id = (
             request.session_id
@@ -377,7 +382,10 @@ async def execute_chat(request: ExecuteChatRequest):
         session = await ChatSession.get(full_session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
+        db_duration = (time.time() - step_start) * 1000
 
+        # Step 2: Get notebook and prompt
+        step_start = time.time()
         # Determine model override (per-request override takes precedence over session-level)
         model_override = (
             request.model_override
@@ -424,15 +432,19 @@ async def execute_chat(request: ExecuteChatRequest):
 
                 if not custom_system_prompt:
                     logger.info("No system prompt set (all sources are empty)")
+        db_duration += (time.time() - step_start) * 1000
 
-        # Get current state
+        # Step 3: Get current state
+        step_start = time.time()
         current_state = chat_graph.get_state(
             config=RunnableConfig(
                 configurable={"thread_id": request.session_id}
             )
         )
+        db_duration += (time.time() - step_start) * 1000
 
-        # Prepare state for execution
+        # Step 4: Prepare context and state
+        step_start = time.time()
         state_values = current_state.values if current_state else {}
         state_values["messages"] = state_values.get("messages", [])
         state_values["context"] = request.context
@@ -440,7 +452,7 @@ async def execute_chat(request: ExecuteChatRequest):
         state_values["custom_system_prompt"] = custom_system_prompt
         state_values["include_citations"] = request.include_citations
 
-        # Debug: Log context info
+        # Log context info
         sources_count = len(request.context.get("sources", []))
         notes_count = len(request.context.get("notes", []))
         logger.info(f"Chat context - sources: {sources_count}, notes: {notes_count}")
@@ -456,7 +468,8 @@ async def execute_chat(request: ExecuteChatRequest):
         user_message = HumanMessage(content=request.message)
         state_values["messages"].append(user_message)
 
-        # Execute chat graph
+        # Execute LLM
+        llm_start = time.time()
         result = chat_graph.invoke(
             input=state_values,  # type: ignore[arg-type]
             config=RunnableConfig(
@@ -466,11 +479,12 @@ async def execute_chat(request: ExecuteChatRequest):
                 }
             ),
         )
+        llm_duration = (time.time() - llm_start) * 1000
 
-        # Update session timestamp
+        # Update session
         await session.save()
 
-        # Convert messages to response format
+        # Convert messages to response
         messages: list[ChatMessage] = []
         # Get current time in UTC+8
         utc_plus_8 = timezone(timedelta(hours=8))
@@ -485,6 +499,31 @@ async def execute_chat(request: ExecuteChatRequest):
                     timestamp=current_time,
                 )
             )
+
+        # Log summary with key metrics
+        total_duration = (time.time() - total_start) * 1000
+
+        # Get model name from model_override ID
+        model_display = "default"
+        if model_override:
+            try:
+                from open_notebook.domain.models import Model
+                model_obj = await Model.get(model_override)
+                if model_obj:
+                    model_display = f"{model_override} ({model_obj.name})"
+            except Exception:
+                model_display = model_override  # Fallback to ID if lookup fails
+
+        logger.info(
+            f"[CHAT] session={request.session_id} | "
+            f"model={model_display} | "
+            f"total={total_duration:.0f}ms | "
+            f"llm={llm_duration:.0f}ms | "
+            f"db={db_duration:.0f}ms | "
+            f"sources={sources_count} | "
+            f"notes={notes_count} | "
+            f"msg={request.message[:50]}"
+        )
 
         return ExecuteChatResponse(session_id=request.session_id, messages=messages)
     except NotFoundError:
