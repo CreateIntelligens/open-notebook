@@ -118,7 +118,7 @@ export function TransformationEditorDialog({ open, onOpenChange, transformation 
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent
         className="sm:max-w-4xl w-full max-h-[90vh] overflow-hidden p-0"
-        ariaDescription="Use this dialog to create or update a transformation."
+        aria-description="Use this dialog to create or update a transformation."
       >
         <DialogTitle className="sr-only">
           {isEditing ? t.common.edit : t.transformations.createNew}

@@ -1,7 +1,6 @@
 import asyncio
 import time
 import traceback
-from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -70,6 +69,12 @@ class ExecuteChatRequest(BaseModel):
     )
     model_override: Optional[str] = Field(
         None, description="Optional model override for this message"
+    )
+    prompt_id: Optional[str] = Field(
+        None, description="Optional system prompt ID to use for this message"
+    )
+    include_citations: bool = Field(
+        True, description="Whether to include document citations in AI responses"
     )
 
 
@@ -213,7 +218,7 @@ async def get_session(session_id: str):
             {"session_id": ensure_record_id(full_session_id)},
         )
 
-        notebook_id = notebook_query[0]["out"] if notebook_query else None
+        notebook_id = str(notebook_query[0]["out"]) if notebook_query else None
 
         if not notebook_id:
             # This might be an old session created before API migration
@@ -344,6 +349,46 @@ async def execute_chat(request: ExecuteChatRequest):
             else getattr(session, "model_override", None)
         )
 
+        # Get notebook_id from session to fetch custom_system_prompt
+        notebook_query = await repo_query(
+            "SELECT out FROM refers_to WHERE in = $session_id",
+            {"session_id": ensure_record_id(full_session_id)},
+        )
+        notebook_id = notebook_query[0]["out"] if notebook_query else None
+
+        # Get custom_system_prompt from notebook (not session)
+        # Priority: request.prompt_id > active_prompt_id > custom_system_prompt
+        custom_system_prompt = None
+        if notebook_id:
+            notebook = await Notebook.get(notebook_id)
+            if notebook:
+                # First priority: prompt_id from request (user's explicit choice)
+                if request.prompt_id:
+                    from open_notebook.domain.notebook import SystemPrompt
+
+                    try:
+                        full_prompt_id = (
+                            request.prompt_id
+                            if request.prompt_id.startswith("system_prompt:")
+                            else f"system_prompt:{request.prompt_id}"
+                        )
+                        specified_prompt = await SystemPrompt.get(full_prompt_id)
+                        custom_system_prompt = specified_prompt.content
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to get specified prompt {request.prompt_id}: {e}"
+                        )
+
+                # Second priority: active prompt from notebook
+                if not custom_system_prompt and notebook.active_prompt_id:
+                    active_prompt = await notebook.get_active_prompt()
+                    if active_prompt:
+                        custom_system_prompt = active_prompt.content
+
+                # Third priority: custom_system_prompt field (legacy)
+                if not custom_system_prompt and notebook.custom_system_prompt:
+                    custom_system_prompt = notebook.custom_system_prompt
+
         # Get current state
         current_state = chat_graph.get_state(
             config=RunnableConfig(configurable={"thread_id": request.session_id})
@@ -354,6 +399,8 @@ async def execute_chat(request: ExecuteChatRequest):
         state_values["messages"] = state_values.get("messages", [])
         state_values["context"] = request.context
         state_values["model_override"] = model_override
+        state_values["custom_system_prompt"] = custom_system_prompt
+        state_values["include_citations"] = request.include_citations
 
         # Add user message to state
         from langchain_core.messages import HumanMessage
@@ -401,7 +448,7 @@ async def execute_chat(request: ExecuteChatRequest):
         # Get model name from model_override ID
         model_display = "unknown"
         try:
-            from open_notebook.domain.models import DefaultModels, Model
+            from open_notebook.ai.models import DefaultModels, Model
 
             if model_override:
                 # Use specified model

@@ -1,4 +1,4 @@
-# Build stage
+# Development runtime image with volume mounting
 FROM python:3.12-slim-bookworm AS builder
 
 # Install uv using the official method
@@ -6,7 +6,6 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Install system dependencies required for building certain Python packages
 # Add Node.js 20.x LTS for building frontend
-# NOTE: gcc/g++/make removed - uv should download pre-built wheels. Add back if build fails.
 # NOTE: gcc/g++/make required for some python dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
@@ -16,11 +15,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Set build optimization environment variables
-ENV MAKEFLAGS="-j$(nproc)"
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV UV_COMPILE_BYTECODE=1
-ENV UV_LINK_MODE=copy
+ENV MAKEFLAGS="-j$(nproc)" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
 
 # Set the working directory in the container to /app
 WORKDIR /app
@@ -55,6 +54,7 @@ FROM python:3.12-slim-bookworm AS runtime
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     ffmpeg \
     supervisor \
+    nginx \
     curl \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
@@ -63,18 +63,20 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 # Install uv using the official method
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_NO_SYNC=1 \
+    VIRTUAL_ENV=/app/.venv
+
 # Set the working directory in the container to /app
 WORKDIR /app
-
-# Copy the virtual environment from builder stage
-COPY --from=builder /app/.venv /app/.venv
 
 # Copy the source code (the rest)
 COPY . /app
 
-# Ensure uv uses the existing venv without attempting network operations
-ENV UV_NO_SYNC=1
-ENV VIRTUAL_ENV=/app/.venv
+# Copy Python virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
 
 # Copy built frontend from builder stage
 COPY --from=builder /app/frontend/.next/standalone /app/frontend/
@@ -82,10 +84,11 @@ COPY --from=builder /app/frontend/.next/static /app/frontend/.next/static
 COPY --from=builder /app/frontend/public /app/frontend/public
 COPY --from=builder /app/frontend/start-server.js /app/frontend/start-server.js
 
-# Expose ports for Frontend and API
-EXPOSE 8502 5055
+# Expose ports for Frontend and API (and nginx if used)
+EXPOSE 8502 5055 8899
 
-RUN mkdir -p /app/data
+# Create necessary directories
+RUN mkdir -p /app/data /var/log/supervisor
 
 # Copy and make executable the wait-for-api script
 COPY scripts/wait-for-api.sh /app/scripts/wait-for-api.sh
@@ -93,9 +96,6 @@ RUN chmod +x /app/scripts/wait-for-api.sh
 
 # Copy supervisord configuration
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Create log directories
-RUN mkdir -p /var/log/supervisor
 
 # Runtime API URL Configuration
 # The API_URL environment variable can be set at container runtime to configure
@@ -107,4 +107,6 @@ RUN mkdir -p /var/log/supervisor
 #
 # Example: docker run -e API_URL=https://your-domain.com/api ...
 
+# Start supervisor to manage processes
+# Note: supervisord.conf should be mounted from host at /etc/supervisor/conf.d/supervisord.conf
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

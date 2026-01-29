@@ -42,7 +42,7 @@ export function SourceDialog({ open, onOpenChange, sourceId }: SourceDialogProps
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col p-0"
-        ariaDescription="Shows detailed information and actions for the selected source."
+        aria-description="Shows detailed information and actions for the selected source."
       >
         {/* Accessibility title (hidden visually but read by screen readers) */}
         <DialogTitle className="sr-only">{t.sources.detailsTitle}</DialogTitle>

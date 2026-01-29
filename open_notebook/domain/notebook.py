@@ -8,16 +8,19 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from surreal_commands import submit_command
 from surrealdb import RecordID
 
-from open_notebook.database.repository import ensure_record_id, repo_query
+from open_notebook.database.repository import ensure_record_id, repo_query, repo_relate
 from open_notebook.domain.base import ObjectModel
 from open_notebook.exceptions import DatabaseOperationError, InvalidInputError
 
 
 class Notebook(ObjectModel):
     table_name: ClassVar[str] = "notebook"
+    nullable_fields: ClassVar[set[str]] = {"custom_system_prompt", "active_prompt_id"}
     name: str
     description: str
     archived: Optional[bool] = False
+    custom_system_prompt: Optional[str] = None
+    active_prompt_id: Optional[str] = None
 
     @field_validator("name")
     @classmethod
@@ -84,6 +87,40 @@ class Notebook(ObjectModel):
             )
             logger.exception(e)
             raise DatabaseOperationError(e)
+
+    async def get_prompts(self) -> List["SystemPrompt"]:
+        """Get all system prompts associated with this notebook."""
+        try:
+            prompts = await repo_query(
+                """
+                select * from (
+                    select out as prompt from prompts_for where in=$id
+                    fetch prompt
+                ) order by prompt.updated desc
+                """,
+                {"id": ensure_record_id(self.id)},
+            )
+            return [SystemPrompt(**p["prompt"]) for p in prompts] if prompts else []
+        except Exception as e:
+            logger.error(f"Error fetching prompts for notebook {self.id}: {str(e)}")
+            logger.exception(e)
+            raise DatabaseOperationError(e)
+
+    async def get_active_prompt(self) -> Optional["SystemPrompt"]:
+        """Get the active system prompt for this notebook."""
+        if not self.active_prompt_id:
+            return None
+        try:
+            prompt = await SystemPrompt.get(self.active_prompt_id)
+            return prompt
+        except Exception as e:
+            logger.error(f"Error fetching active prompt for notebook {self.id}: {str(e)}")
+            return None
+
+    async def set_active_prompt(self, prompt_id: Optional[str]) -> None:
+        """Set the active system prompt for this notebook."""
+        self.active_prompt_id = prompt_id
+        await self.save()
 
     async def get_delete_preview(self) -> Dict[str, Any]:
         """
@@ -607,6 +644,21 @@ class Note(ObjectModel):
                 title=self.title,
                 content=self.content[:100] if self.content else None,
             )
+
+
+class SystemPrompt(ObjectModel):
+    table_name: ClassVar[str] = "system_prompt"
+    name: str
+    content: str
+
+    async def relate_to_notebook(self, notebook_id: str) -> Any:
+        if not notebook_id or not self.id:
+            raise InvalidInputError("Notebook ID and prompt ID must be provided")
+        return await repo_relate(
+            source=ensure_record_id(notebook_id),
+            relationship="prompts_for",
+            target=ensure_record_id(self.id),
+        )
 
 
 class ChatSession(ObjectModel):

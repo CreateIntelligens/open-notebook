@@ -49,6 +49,8 @@ async def get_notebooks(
                 updated=str(nb.get("updated", "")),
                 source_count=nb.get("source_count", 0),
                 note_count=nb.get("note_count", 0),
+                custom_system_prompt=nb.get("custom_system_prompt"),
+                active_prompt_id=nb.get("active_prompt_id"),
             )
             for nb in result
         ]
@@ -66,6 +68,7 @@ async def create_notebook(notebook: NotebookCreate):
         new_notebook = Notebook(
             name=notebook.name,
             description=notebook.description,
+            custom_system_prompt=notebook.custom_system_prompt,
         )
         await new_notebook.save()
 
@@ -78,6 +81,8 @@ async def create_notebook(notebook: NotebookCreate):
             updated=str(new_notebook.updated),
             source_count=0,  # New notebook has no sources
             note_count=0,  # New notebook has no notes
+            custom_system_prompt=new_notebook.custom_system_prompt,
+            active_prompt_id=new_notebook.active_prompt_id,
         )
     except InvalidInputError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -143,6 +148,8 @@ async def get_notebook(notebook_id: str):
             updated=str(nb.get("updated", "")),
             source_count=nb.get("source_count", 0),
             note_count=nb.get("note_count", 0),
+            custom_system_prompt=nb.get("custom_system_prompt"),
+            active_prompt_id=nb.get("active_prompt_id"),
         )
     except HTTPException:
         raise
@@ -161,13 +168,17 @@ async def update_notebook(notebook_id: str, notebook_update: NotebookUpdate):
         if not notebook:
             raise HTTPException(status_code=404, detail="Notebook not found")
 
-        # Update only provided fields
-        if notebook_update.name is not None:
-            notebook.name = notebook_update.name
-        if notebook_update.description is not None:
-            notebook.description = notebook_update.description
-        if notebook_update.archived is not None:
-            notebook.archived = notebook_update.archived
+        # Update only provided fields, allowing explicit null values
+        update_data = notebook_update.model_dump(exclude_unset=True)
+
+        if "name" in update_data:
+            notebook.name = update_data["name"]
+        if "description" in update_data:
+            notebook.description = update_data["description"]
+        if "archived" in update_data:
+            notebook.archived = update_data["archived"]
+        if "custom_system_prompt" in update_data:
+            notebook.custom_system_prompt = update_data["custom_system_prompt"]
 
         await notebook.save()
 
@@ -183,15 +194,17 @@ async def update_notebook(notebook_id: str, notebook_update: NotebookUpdate):
         if result:
             nb = result[0]
             return NotebookResponse(
-                id=str(nb.get("id", "")),
-                name=nb.get("name", ""),
-                description=nb.get("description", ""),
-                archived=nb.get("archived", False),
-                created=str(nb.get("created", "")),
-                updated=str(nb.get("updated", "")),
-                source_count=nb.get("source_count", 0),
-                note_count=nb.get("note_count", 0),
-            )
+                    id=str(nb.get("id", "")),
+                    name=nb.get("name", ""),
+                    description=nb.get("description", ""),
+                    archived=nb.get("archived", False),
+                    created=str(nb.get("created", "")),
+                    updated=str(nb.get("updated", "")),
+                    source_count=nb.get("source_count", 0),
+                    note_count=nb.get("note_count", 0),
+                    custom_system_prompt=nb.get("custom_system_prompt"),
+                    active_prompt_id=nb.get("active_prompt_id"),
+                )
 
         # Fallback if query fails
         return NotebookResponse(
@@ -203,6 +216,8 @@ async def update_notebook(notebook_id: str, notebook_update: NotebookUpdate):
             updated=str(notebook.updated),
             source_count=0,
             note_count=0,
+            custom_system_prompt=notebook.custom_system_prompt,
+            active_prompt_id=notebook.active_prompt_id,
         )
     except HTTPException:
         raise

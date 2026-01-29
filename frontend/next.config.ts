@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Enable standalone output for optimized Docker deployment
-  output: "standalone",
+  // Note: standalone mode is used only for production Docker builds
+  // For development with volume mounts, use standard 'next start'
+  // output: "standalone",
 
   // Experimental features
   // Type assertion needed: proxyClientMaxBodySize is valid in Next.js 15 but types lag behind

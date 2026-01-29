@@ -57,5 +57,15 @@ export const transformationsApi = {
 
   deletePromptPreset: async (promptId: string) => {
     await apiClient.delete(`/transformations/prompts/${promptId}`)
+  },
+
+  getDefaultPrompt: async () => {
+    const response = await apiClient.get<{ transformation_instructions: string }>('/transformations/default-prompt')
+    return response.data
+  },
+
+  updateDefaultPrompt: async (data: { transformation_instructions: string }) => {
+    const response = await apiClient.put<{ transformation_instructions: string }>('/transformations/default-prompt', data)
+    return response.data
   }
 }
