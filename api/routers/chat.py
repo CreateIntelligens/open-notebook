@@ -504,15 +504,26 @@ async def execute_chat(request: ExecuteChatRequest):
         total_duration = (time.time() - total_start) * 1000
 
         # Get model name from model_override ID
-        model_display = "default"
-        if model_override:
-            try:
-                from open_notebook.domain.models import Model
+        model_display = "unknown"
+        try:
+            from open_notebook.domain.models import Model, DefaultModels
+
+            if model_override:
+                # Use specified model
                 model_obj = await Model.get(model_override)
                 if model_obj:
                     model_display = f"{model_override} ({model_obj.name})"
-            except Exception:
-                model_display = model_override  # Fallback to ID if lookup fails
+            else:
+                # Get default chat model
+                defaults = await DefaultModels.get_instance()
+                default_model_id = defaults.default_chat_model
+                if default_model_id:
+                    model_obj = await Model.get(default_model_id)
+                    if model_obj:
+                        model_display = f"{default_model_id} ({model_obj.name})"
+        except Exception as e:
+            logger.warning(f"Failed to get model name: {e}")
+            model_display = model_override if model_override else "default"
 
         logger.info(
             f"[CHAT] session={request.session_id} | "
