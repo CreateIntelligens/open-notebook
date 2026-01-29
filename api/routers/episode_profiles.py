@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from open_notebook.domain.podcast import EpisodeProfile
+from open_notebook.podcasts.models import EpisodeProfile
 
 router = APIRouter()
 
@@ -33,7 +33,7 @@ async def list_episode_profiles():
     """
     try:
         profiles = await EpisodeProfile.get_all(order_by="name asc")
-        
+
         return [
             EpisodeProfileResponse(
                 id=str(profile.id),
@@ -45,16 +45,15 @@ async def list_episode_profiles():
                 transcript_provider=profile.transcript_provider,
                 transcript_model=profile.transcript_model,
                 default_briefing=profile.default_briefing,
-                num_segments=profile.num_segments
+                num_segments=profile.num_segments,
             )
             for profile in profiles
         ]
-        
+
     except Exception as e:
         logger.error(f"Failed to fetch episode profiles: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to fetch episode profiles: {str(e)}"
+            status_code=500, detail="Failed to fetch episode profiles"
         )
 
 
@@ -69,13 +68,12 @@ async def get_episode_profile(profile_name: str):
     """
     try:
         profile = await EpisodeProfile.get_by_name(profile_name)
-        
+
         if not profile:
             raise HTTPException(
-                status_code=404,
-                detail=f"Episode profile '{profile_name}' not found"
+                status_code=404, detail=f"Episode profile '{profile_name}' not found"
             )
-        
+
         return EpisodeProfileResponse(
             id=str(profile.id),
             name=profile.name,
@@ -86,16 +84,15 @@ async def get_episode_profile(profile_name: str):
             transcript_provider=profile.transcript_provider,
             transcript_model=profile.transcript_model,
             default_briefing=profile.default_briefing,
-            num_segments=profile.num_segments
+            num_segments=profile.num_segments,
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to fetch episode profile '{profile_name}': {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to fetch episode profile: {str(e)}"
+            status_code=500, detail="Failed to fetch episode profile"
         )
 
 
@@ -105,7 +102,9 @@ class EpisodeProfileCreate(BaseModel):
     speaker_config: str = Field(..., description="Reference to speaker profile name")
     outline_provider: str = Field(..., description="AI provider for outline generation")
     outline_model: str = Field(..., description="AI model for outline generation")
-    transcript_provider: str = Field(..., description="AI provider for transcript generation")
+    transcript_provider: str = Field(
+        ..., description="AI provider for transcript generation"
+    )
     transcript_model: str = Field(..., description="AI model for transcript generation")
     default_briefing: str = Field(..., description="Default briefing template")
     num_segments: int = Field(default=5, description="Number of podcast segments")
@@ -138,11 +137,11 @@ async def create_episode_profile(profile_data: EpisodeProfileCreate):
             transcript_provider=profile_data.transcript_provider,
             transcript_model=profile_data.transcript_model,
             default_briefing=profile_data.default_briefing,
-            num_segments=profile_data.num_segments
+            num_segments=profile_data.num_segments,
         )
-        
+
         await profile.save()
-        
+
         return EpisodeProfileResponse(
             id=str(profile.id),
             name=profile.name,
@@ -153,14 +152,13 @@ async def create_episode_profile(profile_data: EpisodeProfileCreate):
             transcript_provider=profile.transcript_provider,
             transcript_model=profile.transcript_model,
             default_briefing=profile.default_briefing,
-            num_segments=profile.num_segments
+            num_segments=profile.num_segments,
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to create episode profile: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create episode profile: {str(e)}"
+            status_code=500, detail="Failed to create episode profile"
         )
 
 
@@ -184,13 +182,12 @@ async def update_episode_profile(profile_id: str, profile_data: EpisodeProfileCr
     """
     try:
         profile = await EpisodeProfile.get(profile_id)
-        
+
         if not profile:
             raise HTTPException(
-                status_code=404,
-                detail=f"Episode profile '{profile_id}' not found"
+                status_code=404, detail=f"Episode profile '{profile_id}' not found"
             )
-        
+
         # Update fields
         profile.name = profile_data.name
         profile.description = profile_data.description
@@ -201,9 +198,9 @@ async def update_episode_profile(profile_id: str, profile_data: EpisodeProfileCr
         profile.transcript_model = profile_data.transcript_model
         profile.default_briefing = profile_data.default_briefing
         profile.num_segments = profile_data.num_segments
-        
+
         await profile.save()
-        
+
         return EpisodeProfileResponse(
             id=str(profile.id),
             name=profile.name,
@@ -214,16 +211,15 @@ async def update_episode_profile(profile_id: str, profile_data: EpisodeProfileCr
             transcript_provider=profile.transcript_provider,
             transcript_model=profile.transcript_model,
             default_briefing=profile.default_briefing,
-            num_segments=profile.num_segments
+            num_segments=profile.num_segments,
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to update episode profile: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to update episode profile: {str(e)}"
+            status_code=500, detail="Failed to update episode profile"
         )
 
 
@@ -238,28 +234,28 @@ async def delete_episode_profile(profile_id: str):
     """
     try:
         profile = await EpisodeProfile.get(profile_id)
-        
+
         if not profile:
             raise HTTPException(
-                status_code=404,
-                detail=f"Episode profile '{profile_id}' not found"
+                status_code=404, detail=f"Episode profile '{profile_id}' not found"
             )
-        
+
         await profile.delete()
-        
+
         return {"message": "Episode profile deleted successfully"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to delete episode profile: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to delete episode profile: {str(e)}"
+            status_code=500, detail="Failed to delete episode profile"
         )
 
 
-@router.post("/episode-profiles/{profile_id}/duplicate", response_model=EpisodeProfileResponse)
+@router.post(
+    "/episode-profiles/{profile_id}/duplicate", response_model=EpisodeProfileResponse
+)
 async def duplicate_episode_profile(profile_id: str):
     """
     Duplicate an episode profile.
@@ -270,13 +266,12 @@ async def duplicate_episode_profile(profile_id: str):
     """
     try:
         original = await EpisodeProfile.get(profile_id)
-        
+
         if not original:
             raise HTTPException(
-                status_code=404,
-                detail=f"Episode profile '{profile_id}' not found"
+                status_code=404, detail=f"Episode profile '{profile_id}' not found"
             )
-        
+
         # Create duplicate with modified name
         duplicate = EpisodeProfile(
             name=f"{original.name} - Copy",
@@ -287,11 +282,11 @@ async def duplicate_episode_profile(profile_id: str):
             transcript_provider=original.transcript_provider,
             transcript_model=original.transcript_model,
             default_briefing=original.default_briefing,
-            num_segments=original.num_segments
+            num_segments=original.num_segments,
         )
-        
+
         await duplicate.save()
-        
+
         return EpisodeProfileResponse(
             id=str(duplicate.id),
             name=duplicate.name,
@@ -302,14 +297,13 @@ async def duplicate_episode_profile(profile_id: str):
             transcript_provider=duplicate.transcript_provider,
             transcript_model=duplicate.transcript_model,
             default_briefing=duplicate.default_briefing,
-            num_segments=duplicate.num_segments
+            num_segments=duplicate.num_segments,
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to duplicate episode profile: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to duplicate episode profile: {str(e)}"
+            status_code=500, detail="Failed to duplicate episode profile"
         )

@@ -1,8 +1,15 @@
+# Load environment variables
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from loguru import logger
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api.auth import PasswordAuthMiddleware
 from api.routers import (
@@ -18,7 +25,6 @@ from api.routers import (
     notebooks,
     notes,
     podcasts,
-    prompts,
     search,
     settings,
     source_chat,
@@ -31,7 +37,6 @@ from open_notebook.database.async_migrate import AsyncMigrationManager
 
 # Import commands to register them in the API process
 try:
-
     logger.info("Commands imported in API process")
 except Exception as e:
     logger.error(f"Failed to import commands in API process: {e}")
@@ -43,15 +48,6 @@ async def lifespan(app: FastAPI):
     Lifespan event handler for the FastAPI application.
     Runs database migrations automatically on startup.
     """
-    # Configure chat log rotation
-    logger.add(
-        "logs/chat_{time:YYYY-MM-DD}.log",
-        rotation="00:00",                    # 每天午夜切換
-        retention="30 days",                 # 保留 30 天後直接刪除
-        filter=lambda record: "[CHAT]" in record["message"],  # 只記錄 CHAT log
-        format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {message}",
-    )
-
     # Startup: Run database migrations
     logger.info("Starting API initialization...")
 
@@ -64,9 +60,13 @@ async def lifespan(app: FastAPI):
             logger.warning("Database migrations are pending. Running migrations...")
             await migration_manager.run_migration_up()
             new_version = await migration_manager.get_current_version()
-            logger.success(f"Migrations completed successfully. Database is now at version {new_version}")
+            logger.success(
+                f"Migrations completed successfully. Database is now at version {new_version}"
+            )
         else:
-            logger.info("Database is already at the latest version. No migrations needed.")
+            logger.info(
+                "Database is already at the latest version. No migrations needed."
+            )
     except Exception as e:
         logger.error(f"CRITICAL: Database migration failed: {str(e)}")
         logger.exception(e)
@@ -83,40 +83,25 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Open Notebook API | 開放筆記本 API",
-    description="""
-    ## Open Notebook - Research Assistant API
-
-    這是一個功能強大的研究助理系統，提供以下核心功能：
-
-    ### 核心功能 Core Features
-    - 📔 **筆記本管理** Notebook Management - 組織和管理你的研究筆記本
-    - 📄 **來源管理** Source Management - 匯入和管理各種類型的資料來源（PDF、網頁、影片等）
-    - 📝 **筆記管理** Note Management - 創建和管理研究筆記
-    - 🔍 **智能搜尋** Smart Search - 使用向量嵌入進行語義搜尋
-    - 💬 **AI 對話** AI Chat - 與你的資料進行智能對話
-    - 🎙️ **播客生成** Podcast Generation - 從研究內容生成播客
-    - 🔄 **內容轉換** Content Transformation - 各種內容轉換工具
-
-    ### API 分類 API Categories
-    - **auth** - 認證相關 Authentication
-    - **notebooks** - 筆記本管理 Notebook Management
-    - **sources** - 來源管理 Source Management
-    - **notes** - 筆記管理 Note Management
-    - **chat** - AI 對話 AI Chat
-    - **search** - 搜尋功能 Search
-    - **embedding** - 向量嵌入 Embeddings
-    - **podcasts** - 播客生成 Podcast Generation
-    - **models** - AI 模型管理 Model Management
-    - **settings** - 系統設定 Settings
-    """,
-    version="0.2.2",
+    title="Open Notebook API",
+    description="API for Open Notebook - Research Assistant",
     lifespan=lifespan,
 )
 
 # Add password authentication middleware first
 # Exclude /api/auth/status and /api/config from authentication
-app.add_middleware(PasswordAuthMiddleware, excluded_paths=["/", "/health", "/docs", "/openapi.json", "/redoc", "/api/auth/status", "/api/config"])
+app.add_middleware(
+    PasswordAuthMiddleware,
+    excluded_paths=[
+        "/",
+        "/health",
+        "/docs",
+        "/openapi.json",
+        "/redoc",
+        "/api/auth/status",
+        "/api/config",
+    ],
+)
 
 # Add CORS middleware last (so it processes first)
 app.add_middleware(
@@ -127,17 +112,46 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# Custom exception handler to ensure CORS headers are included in error responses
+# This helps when errors occur before the CORS middleware can process them
+@app.exception_handler(StarletteHTTPException)
+async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """
+    Custom exception handler that ensures CORS headers are included in error responses.
+    This is particularly important for 413 (Payload Too Large) errors during file uploads.
+
+    Note: If a reverse proxy (nginx, traefik) returns 413 before the request reaches
+    FastAPI, this handler won't be called. In that case, configure your reverse proxy
+    to add CORS headers to error responses.
+    """
+    # Get the origin from the request
+    origin = request.headers.get("origin", "*")
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers={
+            **(exc.headers or {}), "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        },
+    )
+
+
 # Include routers
 app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(config.router, prefix="/api", tags=["config"])
 app.include_router(notebooks.router, prefix="/api", tags=["notebooks"])
-app.include_router(prompts.router, prefix="/api", tags=["prompts"])
 app.include_router(search.router, prefix="/api", tags=["search"])
 app.include_router(models.router, prefix="/api", tags=["models"])
 app.include_router(transformations.router, prefix="/api", tags=["transformations"])
 app.include_router(notes.router, prefix="/api", tags=["notes"])
 app.include_router(embedding.router, prefix="/api", tags=["embedding"])
-app.include_router(embedding_rebuild.router, prefix="/api/embeddings", tags=["embeddings"])
+app.include_router(
+    embedding_rebuild.router, prefix="/api/embeddings", tags=["embeddings"]
+)
 app.include_router(settings.router, prefix="/api", tags=["settings"])
 app.include_router(context.router, prefix="/api", tags=["context"])
 app.include_router(sources.router, prefix="/api", tags=["sources"])

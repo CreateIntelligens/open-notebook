@@ -1,13 +1,11 @@
-
-ssl/
+.env
 prompts/patterns/user/
 /notebooks/
 data/
 .uploads/
 sqlite-db/
 surreal-data/
-.env
-!setup_guide/.env
+docker.env
 notebook_data/
 # Python-specific
 *.py[cod]
@@ -133,4 +131,10 @@ doc_exports/
 
 specs/
 .claude
-logs/
+
+.playwright-mcp/
+
+
+
+*.local.yml
+**/*.local.md

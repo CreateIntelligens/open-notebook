@@ -1,47 +1,16 @@
 import asyncio
+import os
+from pathlib import Path
 from typing import Any, ClassVar, Dict, List, Literal, Optional, Tuple, Union
 
 from loguru import logger
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from surreal_commands import submit_command
 from surrealdb import RecordID
 
 from open_notebook.database.repository import ensure_record_id, repo_query
 from open_notebook.domain.base import ObjectModel
-from open_notebook.domain.models import model_manager
 from open_notebook.exceptions import DatabaseOperationError, InvalidInputError
-from open_notebook.utils import split_text
-
-
-class SystemPrompt(ObjectModel):
-    """System prompt that can be used in notebooks for chat sessions."""
-    table_name: ClassVar[str] = "system_prompt"
-    name: str
-    content: str
-
-    @field_validator("name")
-    @classmethod
-    def name_must_not_be_empty(cls, v):
-        if not v.strip():
-            raise InvalidInputError("Prompt name cannot be empty")
-        return v
-
-    @field_validator("content")
-    @classmethod
-    def content_must_not_be_empty(cls, v):
-        if not v.strip():
-            raise InvalidInputError("Prompt content cannot be empty")
-        return v
-
-    async def relate_to_notebook(self, notebook_id: str) -> None:
-        """Create prompts_for relationship between this prompt and a notebook."""
-        try:
-            await repo_query(
-                f"RELATE {ensure_record_id(notebook_id)}->prompts_for->{ensure_record_id(self.id)}",
-            )
-        except Exception as e:
-            logger.error(f"Error creating prompt relationship: {str(e)}")
-            raise DatabaseOperationError(e)
 
 
 class Notebook(ObjectModel):
@@ -49,8 +18,6 @@ class Notebook(ObjectModel):
     name: str
     description: str
     archived: Optional[bool] = False
-    custom_system_prompt: Optional[str] = None
-    active_prompt_id: Optional[str] = None
 
     @field_validator("name")
     @classmethod
@@ -118,39 +85,149 @@ class Notebook(ObjectModel):
             logger.exception(e)
             raise DatabaseOperationError(e)
 
-    async def get_prompts(self) -> List["SystemPrompt"]:
-        """Get all system prompts associated with this notebook."""
+    async def get_delete_preview(self) -> Dict[str, Any]:
+        """
+        Get counts of items that would be affected by deleting this notebook.
+
+        Returns a dict with:
+        - note_count: Number of notes that will be deleted
+        - exclusive_source_count: Sources only in this notebook (can be deleted)
+        - shared_source_count: Sources in other notebooks (will be unlinked only)
+        """
         try:
-            prompts = await repo_query(
-                """
-                select * from (
-                    select out as prompt from prompts_for where in=$id
-                    fetch prompt
-                ) order by prompt.updated desc
-                """,
-                {"id": ensure_record_id(self.id)},
+            notebook_id = ensure_record_id(self.id)
+
+            # Count notes
+            note_result = await repo_query(
+                "SELECT count() as count FROM artifact WHERE out = $notebook_id GROUP ALL",
+                {"notebook_id": notebook_id},
             )
-            return [SystemPrompt(**p["prompt"]) for p in prompts] if prompts else []
+            note_count = note_result[0]["count"] if note_result else 0
+
+            # Get sources with count of references to OTHER notebooks
+            # If assigned_others = 0, source is exclusive to this notebook
+            # If assigned_others > 0, source is shared with other notebooks
+            source_counts = await repo_query(
+                """
+                SELECT
+                    id,
+                    count(->reference[WHERE out != $notebook_id].out) as assigned_others
+                FROM (SELECT VALUE <-reference.in AS sources FROM $notebook_id)[0]
+                """,
+                {"notebook_id": notebook_id},
+            )
+
+            exclusive_count = 0
+            shared_count = 0
+            for src in source_counts:
+                if src.get("assigned_others", 0) == 0:
+                    exclusive_count += 1
+                else:
+                    shared_count += 1
+
+            return {
+                "note_count": note_count,
+                "exclusive_source_count": exclusive_count,
+                "shared_source_count": shared_count,
+            }
         except Exception as e:
-            logger.error(f"Error fetching prompts for notebook {self.id}: {str(e)}")
+            logger.error(f"Error getting delete preview for notebook {self.id}: {e}")
             logger.exception(e)
             raise DatabaseOperationError(e)
 
-    async def get_active_prompt(self) -> Optional["SystemPrompt"]:
-        """Get the active system prompt for this notebook."""
-        if not self.active_prompt_id:
-            return None
-        try:
-            prompt = await SystemPrompt.get(self.active_prompt_id)
-            return prompt
-        except Exception as e:
-            logger.error(f"Error fetching active prompt for notebook {self.id}: {str(e)}")
-            return None
+    async def delete(self, delete_exclusive_sources: bool = False) -> Dict[str, int]:
+        """
+        Delete notebook with cascade deletion of notes and optional source deletion.
 
-    async def set_active_prompt(self, prompt_id: Optional[str]) -> None:
-        """Set the active system prompt for this notebook."""
-        self.active_prompt_id = prompt_id
-        await self.save()
+        Args:
+            delete_exclusive_sources: If True, also delete sources that belong
+                                     only to this notebook. Default is False.
+
+        Returns:
+            Dict with counts: deleted_notes, deleted_sources, unlinked_sources
+        """
+        if self.id is None:
+            raise InvalidInputError("Cannot delete notebook without an ID")
+
+        try:
+            notebook_id = ensure_record_id(self.id)
+            deleted_notes = 0
+            deleted_sources = 0
+            unlinked_sources = 0
+
+            # 1. Get and delete all notes linked to this notebook
+            notes = await self.get_notes()
+            for note in notes:
+                await note.delete()
+                deleted_notes += 1
+            logger.info(f"Deleted {deleted_notes} notes for notebook {self.id}")
+
+            # Delete artifact relationships
+            await repo_query(
+                "DELETE artifact WHERE out = $notebook_id",
+                {"notebook_id": notebook_id},
+            )
+
+            # 2. Handle sources
+            if delete_exclusive_sources:
+                # Find sources with count of references to OTHER notebooks
+                # If assigned_others = 0, source is exclusive to this notebook
+                source_counts = await repo_query(
+                    """
+                    SELECT
+                        id,
+                        count(->reference[WHERE out != $notebook_id].out) as assigned_others
+                    FROM (SELECT VALUE <-reference.in AS sources FROM $notebook_id)[0]
+                    """,
+                    {"notebook_id": notebook_id},
+                )
+
+                for src in source_counts:
+                    source_id = src.get("id")
+                    if source_id and src.get("assigned_others", 0) == 0:
+                        # Exclusive source - delete it
+                        try:
+                            source = await Source.get(str(source_id))
+                            await source.delete()
+                            deleted_sources += 1
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to delete exclusive source {source_id}: {e}"
+                            )
+                    else:
+                        unlinked_sources += 1
+            else:
+                # Just count sources that will be unlinked
+                source_result = await repo_query(
+                    "SELECT count() as count FROM reference WHERE out = $notebook_id GROUP ALL",
+                    {"notebook_id": notebook_id},
+                )
+                unlinked_sources = source_result[0]["count"] if source_result else 0
+
+            # Delete reference relationships (unlink all sources)
+            await repo_query(
+                "DELETE reference WHERE out = $notebook_id",
+                {"notebook_id": notebook_id},
+            )
+            logger.info(
+                f"Unlinked {unlinked_sources} sources, deleted {deleted_sources} "
+                f"exclusive sources for notebook {self.id}"
+            )
+
+            # 3. Delete the notebook record itself
+            await super().delete()
+            logger.info(f"Deleted notebook {self.id}")
+
+            return {
+                "deleted_notes": deleted_notes,
+                "deleted_sources": deleted_sources,
+                "unlinked_sources": unlinked_sources,
+            }
+
+        except Exception as e:
+            logger.error(f"Error deleting notebook {self.id}: {e}")
+            logger.exception(e)
+            raise DatabaseOperationError(f"Failed to delete notebook: {e}")
 
 
 class Asset(BaseModel):
@@ -209,6 +286,8 @@ class SourceInsight(ObjectModel):
 
 
 class Source(ObjectModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     table_name: ClassVar[str] = "source"
     asset: Optional[Asset] = None
     title: Optional[str] = None
@@ -217,9 +296,6 @@ class Source(ObjectModel):
     command: Optional[Union[str, RecordID]] = Field(
         default=None, description="Link to surreal-commands processing job"
     )
-
-    class Config:
-        arbitrary_types_allowed = True
 
     @field_validator("command", mode="before")
     @classmethod
@@ -267,7 +343,9 @@ class Source(ObjectModel):
 
             # Extract execution metadata if available
             result = getattr(status_result, "result", None)
-            execution_metadata = result.get("execution_metadata", {}) if isinstance(result, dict) else {}
+            execution_metadata = (
+                result.get("execution_metadata", {}) if isinstance(result, dict) else {}
+            )
 
             return {
                 "status": status_result.status,
@@ -332,11 +410,14 @@ class Source(ObjectModel):
 
     async def vectorize(self) -> str:
         """
-        Submit vectorization as a background job using the vectorize_source command.
+        Submit vectorization as a background job using the embed_source command.
 
-        This method now leverages the job-based architecture to prevent HTTP connection
-        pool exhaustion when processing large documents. The actual chunk processing
-        happens in the background worker pool, with natural concurrency control.
+        This method leverages the job-based architecture to prevent HTTP connection
+        pool exhaustion when processing large documents. The embed_source command:
+        1. Detects content type from file path
+        2. Chunks text using content-type aware splitter
+        3. Generates all embeddings in a single API call
+        4. Bulk inserts source_embedding records
 
         Returns:
             str: The command/job ID that can be used to track progress via the commands API
@@ -345,66 +426,81 @@ class Source(ObjectModel):
             ValueError: If source has no text to vectorize
             DatabaseOperationError: If job submission fails
         """
-        logger.info(f"Submitting vectorization job for source {self.id}")
+        logger.info(f"Submitting embed_source job for source {self.id}")
 
         try:
             if not self.full_text:
                 raise ValueError(f"Source {self.id} has no text to vectorize")
 
-            # Submit the vectorize_source command which will:
-            # 1. Delete existing embeddings (idempotency)
-            # 2. Split text into chunks
-            # 3. Submit each chunk as an embed_chunk job
+            # Submit the embed_source command
             command_id = submit_command(
-                "open_notebook",      # app name
-                "vectorize_source",   # command name
-                {
-                    "source_id": str(self.id),
-                }
+                "open_notebook",
+                "embed_source",
+                {"source_id": str(self.id)},
             )
 
             command_id_str = str(command_id)
             logger.info(
-                f"Vectorization job submitted for source {self.id}: "
+                f"Embed source job submitted for source {self.id}: "
                 f"command_id={command_id_str}"
             )
 
             return command_id_str
 
         except Exception as e:
-            logger.error(f"Failed to submit vectorization job for source {self.id}: {e}")
+            logger.error(
+                f"Failed to submit embed_source job for source {self.id}: {e}"
+            )
             logger.exception(e)
             raise DatabaseOperationError(e)
 
     async def add_insight(self, insight_type: str, content: str) -> Any:
-        EMBEDDING_MODEL = await model_manager.get_embedding_model()
-        if not EMBEDDING_MODEL:
-            logger.warning("No embedding model found. Insight will not be searchable.")
+        """
+        Add an insight to this source.
 
+        Creates the insight record without embedding, then submits an async
+        embed_insight command to generate the embedding in the background.
+
+        Args:
+            insight_type: Type/category of the insight
+            content: The insight content text
+
+        Returns:
+            The created insight record(s)
+        """
         if not insight_type or not content:
             raise InvalidInputError("Insight type and content must be provided")
         try:
-            embedding = (
-                (await EMBEDDING_MODEL.aembed([content]))[0] if EMBEDDING_MODEL else []
-            )
-            return await repo_query(
+            # Create insight WITHOUT embedding (fire-and-forget embedding via command)
+            result = await repo_query(
                 """
                 CREATE source_insight CONTENT {
                         "source": $source_id,
                         "insight_type": $insight_type,
                         "content": $content,
-                        "embedding": $embedding,
                 };""",
                 {
                     "source_id": ensure_record_id(self.id),
                     "insight_type": insight_type,
                     "content": content,
-                    "embedding": embedding,
                 },
             )
+
+            # Submit embedding command (fire-and-forget)
+            if result and len(result) > 0:
+                insight_id = str(result[0].get("id", ""))
+                if insight_id:
+                    submit_command(
+                        "open_notebook",
+                        "embed_insight",
+                        {"insight_id": insight_id},
+                    )
+                    logger.debug(f"Submitted embed_insight command for {insight_id}")
+
+            return result
         except Exception as e:
             logger.error(f"Error adding insight to source {self.id}: {str(e)}")
-            raise  # DatabaseOperationError(e)
+            raise
 
     def _prepare_save_data(self) -> dict:
         """Override to ensure command field is always RecordID format for database"""
@@ -415,6 +511,46 @@ class Source(ObjectModel):
             data["command"] = ensure_record_id(data["command"])
 
         return data
+
+    async def delete(self) -> bool:
+        """Delete source and clean up associated file, embeddings, and insights."""
+        # Clean up uploaded file if it exists
+        if self.asset and self.asset.file_path:
+            file_path = Path(self.asset.file_path)
+            if file_path.exists():
+                try:
+                    os.unlink(file_path)
+                    logger.info(f"Deleted file for source {self.id}: {file_path}")
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to delete file {file_path} for source {self.id}: {e}. "
+                        "Continuing with database deletion."
+                    )
+            else:
+                logger.debug(
+                    f"File {file_path} not found for source {self.id}, skipping cleanup"
+                )
+
+        # Delete associated embeddings and insights to prevent orphaned records
+        try:
+            source_id = ensure_record_id(self.id)
+            await repo_query(
+                "DELETE source_embedding WHERE source = $source_id",
+                {"source_id": source_id},
+            )
+            await repo_query(
+                "DELETE source_insight WHERE source = $source_id",
+                {"source_id": source_id},
+            )
+            logger.debug(f"Deleted embeddings and insights for source {self.id}")
+        except Exception as e:
+            logger.warning(
+                f"Failed to delete embeddings/insights for source {self.id}: {e}. "
+                "Continuing with source deletion."
+            )
+
+        # Call parent delete to remove database record
+        return await super().delete()
 
 
 class Note(ObjectModel):
@@ -429,6 +565,31 @@ class Note(ObjectModel):
         if v is not None and not v.strip():
             raise InvalidInputError("Note content cannot be empty")
         return v
+
+    async def save(self) -> Optional[str]:
+        """
+        Save the note and submit embedding command.
+
+        Overrides ObjectModel.save() to submit an async embed_note command
+        after saving, instead of inline embedding.
+
+        Returns:
+            Optional[str]: The command_id if embedding was submitted, None otherwise
+        """
+        # Call parent save (without embedding)
+        await super().save()
+
+        # Submit embedding command (fire-and-forget) if note has content
+        if self.id and self.content and self.content.strip():
+            command_id = submit_command(
+                "open_notebook",
+                "embed_note",
+                {"note_id": str(self.id)},
+            )
+            logger.debug(f"Submitted embed_note command {command_id} for {self.id}")
+            return command_id
+
+        return None
 
     async def add_to_notebook(self, notebook_id: str) -> Any:
         if not notebook_id:
@@ -447,18 +608,12 @@ class Note(ObjectModel):
                 content=self.content[:100] if self.content else None,
             )
 
-    def needs_embedding(self) -> bool:
-        return True
-
-    def get_embedding_content(self) -> Optional[str]:
-        return self.content
-
 
 class ChatSession(ObjectModel):
     table_name: ClassVar[str] = "chat_session"
+    nullable_fields: ClassVar[set[str]] = {"model_override"}
     title: Optional[str] = None
     model_override: Optional[str] = None
-    custom_system_prompt: Optional[str] = None
 
     async def relate_to_notebook(self, notebook_id: str) -> Any:
         if not notebook_id:
@@ -501,10 +656,10 @@ async def vector_search(
     if not keyword:
         raise InvalidInputError("Search keyword cannot be empty")
     try:
-        EMBEDDING_MODEL = await model_manager.get_embedding_model()
-        if EMBEDDING_MODEL is None:
-            raise ValueError("EMBEDDING_MODEL is not configured")
-        embed = (await EMBEDDING_MODEL.aembed([keyword]))[0]
+        from open_notebook.utils.embedding import generate_embedding
+
+        # Use unified embedding function (handles chunking if query is very long)
+        embed = await generate_embedding(keyword)
         search_results = await repo_query(
             """
             SELECT * FROM fn::vector_search($embed, $results, $source, $note, $minimum_score);
