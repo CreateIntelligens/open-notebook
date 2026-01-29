@@ -1,55 +1,10 @@
-# Development runtime image with volume mounting
-FROM python:3.12-slim-bookworm AS builder
+# Dockerfile - Works for both development (with volumes) and production (standalone)
+FROM python:3.12-slim-bookworm
 
 # Install uv using the official method
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Install system dependencies required for building certain Python packages
-# Add Node.js 20.x LTS for building frontend
-# NOTE: gcc/g++/make required for some python dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    build-essential \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set build optimization environment variables
-ENV MAKEFLAGS="-j$(nproc)" \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
-
-# Set the working directory in the container to /app
-WORKDIR /app
-
-# Copy dependency files and minimal package structure first for better layer caching
-COPY pyproject.toml uv.lock ./
-COPY open_notebook/__init__.py ./open_notebook/__init__.py
-
-# Install dependencies with optimizations (this layer will be cached unless dependencies change)
-RUN uv sync --frozen --no-dev
-
-# Copy the rest of the application code
-COPY . /app
-
-# Install frontend dependencies and build
-WORKDIR /app/frontend
-ARG NPM_REGISTRY=https://registry.npmjs.org/
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm config set registry ${NPM_REGISTRY}
-RUN npm ci
-COPY frontend/ ./
-RUN npm run build
-
-# Return to app root
-WORKDIR /app
-
-# Runtime stage
-FROM python:3.12-slim-bookworm AS runtime
-
-# Install only runtime system dependencies (no build tools)
+# Install runtime system dependencies
 # Add Node.js 20.x LTS for running frontend
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     ffmpeg \
@@ -60,53 +15,27 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv using the official method
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_NO_SYNC=1 \
     VIRTUAL_ENV=/app/.venv
 
-# Set the working directory in the container to /app
+# Set the working directory
 WORKDIR /app
 
-# Copy the source code (the rest)
-COPY . /app
+# Create necessary directories
+RUN mkdir -p /app/data /var/log/supervisor /app/ssl
 
-# Copy Python virtual environment from builder
-COPY --from=builder /app/.venv /app/.venv
-
-# Copy built frontend from builder stage
-COPY --from=builder /app/frontend/.next/standalone /app/frontend/
-COPY --from=builder /app/frontend/.next/static /app/frontend/.next/static
-COPY --from=builder /app/frontend/public /app/frontend/public
-COPY --from=builder /app/frontend/start-server.js /app/frontend/start-server.js
-
-# Expose ports for Frontend and API (and nginx if used)
+# Expose ports for Frontend, API, and nginx
 EXPOSE 8502 5055 8899
 
-# Create necessary directories
-RUN mkdir -p /app/data /var/log/supervisor
-
-# Copy and make executable the wait-for-api script
-COPY scripts/wait-for-api.sh /app/scripts/wait-for-api.sh
-RUN chmod +x /app/scripts/wait-for-api.sh
-
 # Copy supervisord configuration
+# This will be overridden by volume mount in docker-compose, but needed for standalone use
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Runtime API URL Configuration
-# The API_URL environment variable can be set at container runtime to configure
-# where the frontend should connect to the API. This allows the same Docker image
-# to work in different deployment scenarios without rebuilding.
-#
-# If not set, the system will auto-detect based on incoming requests.
-# Set API_URL when using reverse proxies or custom domains.
-#
-# Example: docker run -e API_URL=https://your-domain.com/api ...
+# Note: In docker-compose, volumes (.:/app) will provide all source code
+# For standalone usage (docker run), mount your code or build a production image separately
 
-# Start supervisor to manage processes
-# Note: supervisord.conf should be mounted from host at /etc/supervisor/conf.d/supervisord.conf
+# Default command
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
