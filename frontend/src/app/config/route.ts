@@ -34,29 +34,23 @@ export async function GET(request: NextRequest) {
   }
 
   // Priority 2: Auto-detect from request headers
+  // For nginx deployments, use the same host:port as the incoming request
   try {
     // Get the protocol (http or https)
-    // Check X-Forwarded-Proto first (for reverse proxies), then fallback to request scheme
     const proto = request.headers.get('x-forwarded-proto') ||
-                  request.nextUrl.protocol.replace(':', '') ||
-                  'http'
+                  (request.nextUrl.protocol || 'https').replace(':', '')
 
-    // Get the host header (includes port if non-standard)
-    const hostHeader = request.headers.get('host')
+    // Get the host from headers
+    // X-Forwarded-Host may include port (set by nginx as $host:$server_port)
+    const forwardedHost = request.headers.get('x-forwarded-host')
+    const host = forwardedHost || request.headers.get('host')
 
-    if (hostHeader) {
-      // Use the same host:port as the incoming request
-      // Since nginx proxies everything through a single port, we just return the same URL
-      // Ensure port is included (default to runtime PORT if not present)
-      let apiUrl: string
-      if (hostHeader.includes(':')) {
-        apiUrl = `${proto}://${hostHeader}`
-      } else {
-        // No port in host header, add the runtime port
-        apiUrl = `${proto}://${hostHeader}:${runtimePort}`
-      }
+    if (host) {
+      const apiUrl = `${proto}://${host}`
 
-      console.log(`[runtime-config] Auto-detected API URL: ${apiUrl} (proto=${proto}, host=${hostHeader})`)
+      console.log(
+        `[runtime-config] Auto-detected API URL: ${apiUrl} (proto=${proto}, x-forwarded-host=${forwardedHost}, host=${request.headers.get('host')})`
+      )
 
       return NextResponse.json({
         apiUrl,
