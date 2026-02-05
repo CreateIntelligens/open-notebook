@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { Bot, User, Send, Loader2, FileText, Lightbulb, StickyNote, Clock } from 'lucide-react'
+import { Bot, User, Send, Loader2, FileText, Lightbulb, StickyNote, Clock, Quote } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {
@@ -36,7 +36,7 @@ interface ChatPanelProps {
   messages: SourceChatMessage[]
   isStreaming: boolean
   contextIndicators: SourceChatContextIndicator | null
-  onSendMessage: (message: string, modelOverride?: string) => void
+  onSendMessage: (message: string, modelOverride?: string, promptId?: string | null, includeCitations?: boolean) => void
   modelOverride?: string
   onModelChange?: (model?: string) => void
   // Session management props
@@ -78,6 +78,7 @@ export function ChatPanel({
   const { t } = useTranslation()
   const chatInputId = useId()
   const [input, setInput] = useState('')
+  const [includeCitations, setIncludeCitations] = useState(true)
   const [sessionManagerOpen, setSessionManagerOpen] = useState(false)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -103,7 +104,7 @@ export function ChatPanel({
 
   const handleSend = () => {
     if (input.trim() && !isStreaming) {
-      onSendMessage(input.trim(), modelOverride)
+      onSendMessage(input.trim(), modelOverride, null, includeCitations)
       setInput('')
     }
   }
@@ -132,35 +133,47 @@ export function ChatPanel({
             <Bot className="h-5 w-5" />
             {title || (contextType === 'source' ? t.chat.chatWith.replace('{name}', t.navigation.sources) : t.chat.chatWith.replace('{name}', t.common.notebook))}
           </CardTitle>
-          {onSelectSession && onCreateSession && onDeleteSession && (
-            <Dialog open={sessionManagerOpen} onOpenChange={setSessionManagerOpen}>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-2"
-                onClick={() => setSessionManagerOpen(true)}
-                disabled={loadingSessions}
-              >
-                <Clock className="h-4 w-4" />
-                <span className="text-xs">{t.chat.sessions}</span>
-              </Button>
-              <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden">
-                <DialogTitle className="sr-only">{t.chat.sessionsTitle}</DialogTitle>
-                <SessionManager
-                  sessions={sessions}
-                  currentSessionId={currentSessionId ?? null}
-                  onCreateSession={(title) => onCreateSession?.(title)}
-                  onSelectSession={(sessionId) => {
-                    onSelectSession(sessionId)
-                    setSessionManagerOpen(false)
-                  }}
-                  onUpdateSession={(sessionId, title) => onUpdateSession?.(sessionId, title)}
-                  onDeleteSession={(sessionId) => onDeleteSession?.(sessionId)}
-                  loadingSessions={loadingSessions}
-                />
-              </DialogContent>
-            </Dialog>
-          )}
+          <div className="flex items-center gap-2">
+            <Button
+              variant={includeCitations ? "default" : "outline"}
+              size="sm"
+              className="gap-2"
+              onClick={() => setIncludeCitations(!includeCitations)}
+              disabled={isStreaming}
+            >
+              <Quote className="h-4 w-4" />
+              <span className="text-xs hidden sm:inline">{t.chat.citations || 'Citations'}</span>
+            </Button>
+            {onSelectSession && onCreateSession && onDeleteSession && (
+              <Dialog open={sessionManagerOpen} onOpenChange={setSessionManagerOpen}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setSessionManagerOpen(true)}
+                  disabled={loadingSessions}
+                >
+                  <Clock className="h-4 w-4" />
+                  <span className="text-xs">{t.chat.sessions}</span>
+                </Button>
+                <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden">
+                  <DialogTitle className="sr-only">{t.chat.sessionsTitle}</DialogTitle>
+                  <SessionManager
+                    sessions={sessions}
+                    currentSessionId={currentSessionId ?? null}
+                    onCreateSession={(title) => onCreateSession?.(title)}
+                    onSelectSession={(sessionId) => {
+                      onSelectSession(sessionId)
+                      setSessionManagerOpen(false)
+                    }}
+                    onUpdateSession={(sessionId, title) => onUpdateSession?.(sessionId, title)}
+                    onDeleteSession={(sessionId) => onDeleteSession?.(sessionId)}
+                    loadingSessions={loadingSessions}
+                  />
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col min-h-0 p-0">
