@@ -1,22 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { AppShell } from '@/components/layout/AppShell'
 import { NotebookHeader } from '../components/NotebookHeader'
 import { SourcesColumn } from '../components/SourcesColumn'
 import { NotesColumn } from '../components/NotesColumn'
+import { PromptsColumn } from '../components/PromptsColumn'
 import { ChatColumn } from '../components/ChatColumn'
 import { useNotebook } from '@/lib/hooks/use-notebooks'
 import { useNotebookSources } from '@/lib/hooks/use-sources'
 import { useNotes } from '@/lib/hooks/use-notes'
+import { usePrompts, useActivePrompt } from '@/lib/hooks/use-prompts'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
-import { useNotebookColumnsStore } from '@/lib/stores/notebook-columns-store'
-import { useIsDesktop } from '@/lib/hooks/use-media-query'
-import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { FileText, StickyNote, MessageSquare } from 'lucide-react'
+import { type LucideIcon, FileText, StickyNote, MessageSquare, MessageCircle } from 'lucide-react'
 
 export type ContextMode = 'off' | 'insights' | 'full'
 
@@ -25,8 +23,48 @@ export interface ContextSelections {
   notes: Record<string, ContextMode>
 }
 
+type PanelKey = 'sources' | 'notes' | 'prompts' | 'chat'
+
+interface PanelDefinition {
+  key: PanelKey
+  label: string
+  icon: LucideIcon
+}
+
+const panelDefinitions: PanelDefinition[] = [
+  { key: 'sources', label: 'Sources', icon: FileText },
+  { key: 'notes', label: 'Notes', icon: StickyNote },
+  { key: 'prompts', label: 'Prompts', icon: MessageSquare },
+  { key: 'chat', label: 'Chat', icon: MessageCircle },
+]
+
+interface PanelToggleProps {
+  label: string
+  icon: LucideIcon
+  active: boolean
+  onClick: () => void
+}
+
+function PanelToggle({ label, icon: Icon, active, onClick }: PanelToggleProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'group relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+        active
+          ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90'
+          : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+      )}
+    >
+      <Icon className="h-3.5 w-3.5 transition-transform duration-200 group-hover:scale-105" />
+      <span className="text-xs">{label}</span>
+    </button>
+  )
+}
+
 export default function NotebookPage() {
-  const { t } = useTranslation()
   const params = useParams()
 
   // Ensure the notebook ID is properly decoded from URL
@@ -37,20 +75,25 @@ export default function NotebookPage() {
     sources,
     isLoading: sourcesLoading,
     refetch: refetchSources,
-    hasNextPage,
-    isFetchingNextPage,
-    fetchNextPage,
   } = useNotebookSources(notebookId)
   const { data: notes, isLoading: notesLoading } = useNotes(notebookId)
+  const { data: prompts, isLoading: promptsLoading } = usePrompts(notebookId)
+  const { data: activePrompt } = useActivePrompt(notebookId)
 
-  // Get collapse states for dynamic layout
-  const { sourcesCollapsed, notesCollapsed } = useNotebookColumnsStore()
+  // Panel toggle state
+  const [panelOpenState, setPanelOpenState] = useState<Record<PanelKey, boolean>>({
+    sources: true,
+    notes: true,
+    prompts: true,
+    chat: true,
+  })
 
-  // Detect desktop to avoid double-mounting ChatColumn
-  const isDesktop = useIsDesktop()
-
-  // Mobile tab state (Sources, Notes, or Chat)
-  const [mobileActiveTab, setMobileActiveTab] = useState<'sources' | 'notes' | 'chat'>('chat')
+  const togglePanel = useCallback((panel: PanelKey) => {
+    setPanelOpenState(prev => ({
+      ...prev,
+      [panel]: !prev[panel]
+    }))
+  }, [])
 
   // Context selection state
   const [contextSelections, setContextSelections] = useState<ContextSelections>({
@@ -102,6 +145,17 @@ export default function NotebookPage() {
     }))
   }
 
+  const gridColumnsClass = useMemo(() => {
+    const openCount = panelDefinitions.reduce(
+      (count, panel) => count + (panelOpenState[panel.key] ? 1 : 0),
+      0
+    )
+    if (openCount <= 1) return 'lg:grid-cols-1'
+    if (openCount === 2) return 'lg:grid-cols-2'
+    if (openCount === 3) return 'lg:grid-cols-3'
+    return 'lg:grid-cols-4'
+  }, [panelOpenState])
+
   if (notebookLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -114,8 +168,8 @@ export default function NotebookPage() {
     return (
       <AppShell>
         <div className="p-6">
-          <h1 className="text-2xl font-bold mb-4">{t.notebooks.notFound}</h1>
-          <p className="text-muted-foreground">{t.notebooks.notFoundDesc}</p>
+          <h1 className="text-2xl font-bold mb-4">Notebook Not Found</h1>
+          <p className="text-muted-foreground">The requested notebook could not be found.</p>
         </div>
       </AppShell>
     )
@@ -128,32 +182,30 @@ export default function NotebookPage() {
           <NotebookHeader notebook={notebook} />
         </div>
 
-        <div className="flex-1 p-6 pt-6 overflow-x-auto flex flex-col">
-          {/* Mobile: Tabbed interface - only render on mobile to avoid double-mounting */}
-          {!isDesktop && (
-            <>
-              <div className="lg:hidden mb-4">
-                <Tabs value={mobileActiveTab} onValueChange={(value) => setMobileActiveTab(value as 'sources' | 'notes' | 'chat')}>
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="sources" className="gap-2">
-                      <FileText className="h-4 w-4" />
-                      {t.navigation.sources}
-                    </TabsTrigger>
-                    <TabsTrigger value="notes" className="gap-2">
-                      <StickyNote className="h-4 w-4" />
-                      {t.common.notes}
-                    </TabsTrigger>
-                    <TabsTrigger value="chat" className="gap-2">
-                      <MessageSquare className="h-4 w-4" />
-                      {t.common.chat}
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
+        <div className="flex-1 p-6 pt-6 overflow-hidden">
+          <div className="flex h-full flex-col gap-6 min-h-0">
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card px-3 py-2">
+              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <MessageCircle className="h-3.5 w-3.5" />
+                顯示面板
               </div>
+              <div className="flex flex-wrap gap-2">
+                {panelDefinitions.map(panel => (
+                  <PanelToggle
+                    key={panel.key}
+                    label={panel.label}
+                    icon={panel.icon}
+                    active={panelOpenState[panel.key]}
+                    onClick={() => togglePanel(panel.key)}
+                  />
+                ))}
+              </div>
+            </div>
 
-              {/* Mobile: Show only active tab */}
-              <div className="flex-1 overflow-hidden lg:hidden">
-                {mobileActiveTab === 'sources' && (
+            <div className={cn('grid grid-cols-1 gap-6 h-full min-h-0', gridColumnsClass)}>
+              {/* Sources Column */}
+              {panelOpenState.sources && (
+                <div className="flex flex-col h-full min-h-0 overflow-hidden">
                   <SourcesColumn
                     sources={sources}
                     isLoading={sourcesLoading}
@@ -162,12 +214,13 @@ export default function NotebookPage() {
                     onRefresh={refetchSources}
                     contextSelections={contextSelections.sources}
                     onContextModeChange={(sourceId, mode) => handleContextModeChange(sourceId, mode, 'source')}
-                    hasNextPage={hasNextPage}
-                    isFetchingNextPage={isFetchingNextPage}
-                    fetchNextPage={fetchNextPage}
                   />
-                )}
-                {mobileActiveTab === 'notes' && (
+                </div>
+              )}
+
+              {/* Notes Column */}
+              {panelOpenState.notes && (
+                <div className="flex flex-col h-full min-h-0 overflow-hidden">
                   <NotesColumn
                     notes={notes}
                     isLoading={notesLoading}
@@ -175,61 +228,30 @@ export default function NotebookPage() {
                     contextSelections={contextSelections.notes}
                     onContextModeChange={(noteId, mode) => handleContextModeChange(noteId, mode, 'note')}
                   />
-                )}
-                {mobileActiveTab === 'chat' && (
+                </div>
+              )}
+
+              {/* Prompts Column */}
+              {panelOpenState.prompts && (
+                <div className="flex flex-col h-full min-h-0 overflow-hidden">
+                  <PromptsColumn
+                    prompts={prompts}
+                    activePromptId={activePrompt?.id}
+                    isLoading={promptsLoading}
+                    notebookId={notebookId}
+                  />
+                </div>
+              )}
+
+              {/* Chat Column */}
+              {panelOpenState.chat && (
+                <div className="flex flex-col h-full min-h-0 overflow-hidden">
                   <ChatColumn
                     notebookId={notebookId}
                     contextSelections={contextSelections}
                   />
-                )}
-              </div>
-            </>
-          )}
-
-          {/* Desktop: Collapsible columns layout */}
-          <div className={cn(
-            'hidden lg:flex h-full min-h-0 gap-6 transition-all duration-150',
-            'flex-row'
-          )}>
-            {/* Sources Column */}
-            <div className={cn(
-              'transition-all duration-150',
-              sourcesCollapsed ? 'w-12 flex-shrink-0' : 'flex-none basis-1/3'
-            )}>
-              <SourcesColumn
-                sources={sources}
-                isLoading={sourcesLoading}
-                notebookId={notebookId}
-                notebookName={notebook?.name}
-                onRefresh={refetchSources}
-                contextSelections={contextSelections.sources}
-                onContextModeChange={(sourceId, mode) => handleContextModeChange(sourceId, mode, 'source')}
-                hasNextPage={hasNextPage}
-                isFetchingNextPage={isFetchingNextPage}
-                fetchNextPage={fetchNextPage}
-              />
-            </div>
-
-            {/* Notes Column */}
-            <div className={cn(
-              'transition-all duration-150',
-              notesCollapsed ? 'w-12 flex-shrink-0' : 'flex-none basis-1/3'
-            )}>
-              <NotesColumn
-                notes={notes}
-                isLoading={notesLoading}
-                notebookId={notebookId}
-                contextSelections={contextSelections.notes}
-                onContextModeChange={(noteId, mode) => handleContextModeChange(noteId, mode, 'note')}
-              />
-            </div>
-
-            {/* Chat Column - always expanded, takes remaining space */}
-            <div className="transition-all duration-150 flex-1 lg:pr-6 lg:-mr-6">
-              <ChatColumn
-                notebookId={notebookId}
-                contextSelections={contextSelections}
-              />
+                </div>
+              )}
             </div>
           </div>
         </div>

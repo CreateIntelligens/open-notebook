@@ -4,7 +4,6 @@ import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import {
   MessageSquare,
@@ -120,7 +119,7 @@ export function SessionManager({
           </CardTitle>
         </CardHeader>
         <CardContent className="flex-1 p-0 min-h-0">
-          <ScrollArea className="h-full px-4">
+          <div className="max-h-[60vh] min-h-0 overflow-y-auto overscroll-contain px-4 pr-2">
             {isCreating && (
               <div className="p-3 border rounded-lg mb-3">
                 <Input
@@ -245,7 +244,7 @@ export function SessionManager({
                 ))}
               </div>
             )}
-          </ScrollArea>
+          </div>
         </CardContent>
       </Card>
 

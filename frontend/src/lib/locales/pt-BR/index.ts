@@ -468,6 +468,18 @@ export const ptBR = {
     sessionUpdated: "Sessão atualizada",
     sessionDeleted: "Sessão excluída",
     citations: "Citações",
+    citationsOn: "Ligado",
+    citationsOff: "Desligado",
+    citationsHintOn: "Citações ativadas (vale para novas respostas)",
+    citationsHintOff: "Citações desativadas (vale para novas respostas)",
+  },
+  prompts: {
+    systemPrompts: "Prompts do Sistema",
+    addPrompt: "Adicionar Prompt",
+    emptyTitle: "Nenhum prompt personalizado",
+    emptyDescription: "Crie prompts de sistema personalizados para controlar o comportamento da IA no chat.",
+    setActivePrompt: "Definir como prompt ativo",
+    unsetActivePrompt: "Remover como prompt ativo",
   },
   searchPage: {
     askAndSearch: "Perguntar e Buscar",

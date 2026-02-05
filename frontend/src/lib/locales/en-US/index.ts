@@ -468,6 +468,18 @@ export const enUS = {
     sessionUpdated: "Session updated",
     sessionDeleted: "Session deleted",
     citations: "Citations",
+    citationsOn: "On",
+    citationsOff: "Off",
+    citationsHintOn: "Citations enabled (applies to new replies)",
+    citationsHintOff: "Citations disabled (applies to new replies)",
+  },
+  prompts: {
+    systemPrompts: "System Prompts",
+    addPrompt: "Add Prompt",
+    emptyTitle: "No custom prompts",
+    emptyDescription: "Create custom system prompts to control AI behavior in chat.",
+    setActivePrompt: "Set as active prompt",
+    unsetActivePrompt: "Unset as active prompt",
   },
   searchPage: {
     askAndSearch: "Ask and Search",

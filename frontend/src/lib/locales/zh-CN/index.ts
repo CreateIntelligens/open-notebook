@@ -468,6 +468,18 @@ export const zhCN = {
     sessionUpdated: "会话已更新",
     sessionDeleted: "会话已删除",
     citations: "引用",
+    citationsOn: "开",
+    citationsOff: "关",
+    citationsHintOn: "引用已开启（仅影响下一次回复）",
+    citationsHintOff: "引用已关闭（仅影响下一次回复）",
+  },
+  prompts: {
+    systemPrompts: "系统提示词",
+    addPrompt: "新增提示词",
+    emptyTitle: "暂无自定义提示词",
+    emptyDescription: "创建自定义系统提示词来控制聊天中的 AI 行为。",
+    setActivePrompt: "设为启用提示词",
+    unsetActivePrompt: "取消启用提示词",
   },
   searchPage: {
     askAndSearch: "提问与搜索",

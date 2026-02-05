@@ -468,6 +468,18 @@ export const jaJP = {
     sessionUpdated: "セッションを更新しました",
     sessionDeleted: "セッションを削除しました",
     citations: "引用",
+    citationsOn: "オン",
+    citationsOff: "オフ",
+    citationsHintOn: "引用を有効化（新しい返信に適用）",
+    citationsHintOff: "引用を無効化（新しい返信に適用）",
+  },
+  prompts: {
+    systemPrompts: "システムプロンプト",
+    addPrompt: "プロンプトを追加",
+    emptyTitle: "カスタムプロンプトがありません",
+    emptyDescription: "チャットでのAIの振る舞いを制御するカスタムシステムプロンプトを作成します。",
+    setActivePrompt: "アクティブなプロンプトに設定",
+    unsetActivePrompt: "アクティブ解除",
   },
   searchPage: {
     askAndSearch: "質問と検索",

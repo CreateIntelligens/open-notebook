@@ -74,7 +74,7 @@ class ExecuteChatRequest(BaseModel):
         None, description="Optional system prompt ID to use for this message"
     )
     include_citations: bool = Field(
-        False, description="Whether to include document citations in AI responses"
+        True, description="Whether to include document citations in AI responses"
     )
 
 

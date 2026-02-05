@@ -17,6 +17,7 @@ import { PromptEditorDialog } from './PromptEditorDialog'
 import { useDeletePrompt, useSetActivePrompt } from '@/lib/hooks/use-prompts'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { formatDistanceToNow } from 'date-fns'
+import { useTranslation } from '@/lib/hooks/use-translation'
 
 interface PromptsColumnProps {
   prompts?: SystemPromptResponse[]
@@ -31,6 +32,7 @@ export function PromptsColumn({
   isLoading,
   notebookId,
 }: PromptsColumnProps) {
+  const { t } = useTranslation()
   const [dialogMode, setDialogMode] = useState<'create' | 'edit' | null>(null)
   const [editorPrompt, setEditorPrompt] = useState<SystemPromptResponse | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -72,7 +74,7 @@ export function PromptsColumn({
       <Card className="h-full flex flex-col flex-1 overflow-hidden">
         <CardHeader className="pb-3 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">System Prompts</CardTitle>
+            <CardTitle className="text-lg">{t.prompts.systemPrompts}</CardTitle>
             <Button
               size="sm"
               onClick={() => {
@@ -81,7 +83,7 @@ export function PromptsColumn({
               }}
             >
               <Plus className="h-4 w-4 mr-2" />
-              Add Prompt
+              {t.prompts.addPrompt}
             </Button>
           </div>
         </CardHeader>
@@ -94,8 +96,8 @@ export function PromptsColumn({
           ) : !prompts || prompts.length === 0 ? (
             <EmptyState
               icon={MessageSquare}
-              title="No custom prompts"
-              description="Create custom system prompts to control AI behavior in chat."
+              title={t.prompts.emptyTitle}
+              description={t.prompts.emptyDescription}
             />
           ) : (
             <div className="space-y-3">
@@ -114,7 +116,7 @@ export function PromptsColumn({
                         type="button"
                         onClick={() => handleSetActive(isActive ? null : prompt.id)}
                         className="flex-shrink-0 mt-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
-                        aria-label={isActive ? 'Unset as active prompt' : 'Set as active prompt'}
+                        aria-label={isActive ? t.prompts.unsetActivePrompt : t.prompts.setActivePrompt}
                       >
                         {isActive ? (
                           <CheckCircle2 className="h-5 w-5 text-primary" />
@@ -147,7 +149,10 @@ export function PromptsColumn({
                           {prompt.content}
                         </p>
                         <p className="text-xs text-muted-foreground mt-2">
-                          Updated {formatDistanceToNow(new Date(prompt.updated), { addSuffix: true })}
+                          {t.common.updated.replace(
+                            '{time}',
+                            formatDistanceToNow(new Date(prompt.updated), { addSuffix: true })
+                          )}
                         </p>
                       </div>
 
@@ -171,14 +176,14 @@ export function PromptsColumn({
                             }}
                           >
                             <Edit className="h-4 w-4 mr-2" />
-                            Edit
+                            {t.common.edit}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleDeleteClick(prompt.id)}
                             className="text-destructive"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
+                            {t.common.delete}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
