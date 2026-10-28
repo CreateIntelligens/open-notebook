@@ -1,5 +1,14 @@
+FROM node:22-bookworm-slim AS builder
+WORKDIR /opt/frontend
+RUN corepack enable
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY frontend/ ./
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm run build
+
 # Dockerfile - Works for both development (with volumes) and production (standalone)
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-bookworm AS runner
 
 # Install uv using the official method
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -9,11 +18,21 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     ffmpeg \
     supervisor \
-    nginx \
+    gnupg \
+    ca-certificates \
+    openssl \
     curl \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
+    && curl -fsSL https://nginx.org/keys/nginx_signing.key -o /tmp/nginx_signing.key \
+    && gpg --dearmor --output /usr/share/keyrings/nginx-archive-keyring.gpg /tmp/nginx_signing.key \
+    && echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] https://nginx.org/packages/mainline/debian bookworm nginx" > /etc/apt/sources.list.d/nginx.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends nginx=1.31.7-1~bookworm \
+    && nginx -v \
+    && rm -rf /var/lib/apt/lists/* /tmp/nginx_signing.key
+
+COPY --from=builder /opt/frontend /opt/frontend
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \

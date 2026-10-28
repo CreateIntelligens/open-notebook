@@ -314,3 +314,24 @@ Open Notebook is MIT licensed. See the [LICENSE](LICENSE) file for details.
 [LangChain-url]: https://www.langchain.com/
 [SurrealDB]: https://img.shields.io/badge/SurrealDB-FF5E00?style=for-the-badge&logo=databricks&logoColor=white
 [SurrealDB-url]: https://surrealdb.com/
+
+### A4000 deployment security update (2026-10-22)
+
+The local Compose deployment builds the Next.js production output into the image
+and starts it with `next start`; frontend dependencies use `pnpm@10.20.0` and
+`pnpm-lock.yaml` (replacing `package-lock.json`). `pnpm start` uses the standard
+`next start` entrypoint; set `PORT=8502` for the local frontend port. The Python source and persistent data retain their existing
+mounts. Rebuild one service at a time:
+
+```bash
+docker compose build --pull open_notebook
+docker compose up -d --no-deps open_notebook
+docker compose exec open_notebook nginx -v
+docker compose exec open_notebook node -p "require('/opt/frontend/node_modules/next/package.json').version"
+```
+
+Run `docker compose exec open_notebook python /app/scripts/verify-deployment-security.py`
+after deployment to detect version or runtime-mode regressions.
+
+NGINX is pinned to 1.31.7 and Next.js to 16.1.5. The external HTTPS port remains
+configured by `PORT`. Rebuilding is required for frontend changes.

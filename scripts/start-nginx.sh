@@ -2,7 +2,7 @@
 set -euo pipefail
 
 TEMPLATE_PATH="/app/nginx.conf"
-TARGET_PATH="/etc/nginx/sites-enabled/default"
+TARGET_PATH="/etc/nginx/conf.d/default.conf"
 SSL_CERT="/app/ssl/ssl-cert.pem"
 PORT_VALUE="${PORT:-8899}"
 
